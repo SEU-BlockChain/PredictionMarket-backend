@@ -1,0 +1,8 @@
+*.log
+*.pyc
+__pycache__
+.idea/
+backend/apps/*/migrations/*.py
+!backend/apps/*/migrations/__init__.py
+backend/privacy
+*/tests.py
