@@ -1,0 +1,9 @@
+threads = 9
+bind = '0.0.0.0:8000'
+daemon = 'false'
+worker_class = 'uvicorn.workers.UvicornWorker'
+worker_connections = 2000
+pidfile = '/var/run/gunicorn.pid'
+accesslog = 'logs/acess.log'
+errorlog = 'logs/error.log'
+loglevel = 'warning'
