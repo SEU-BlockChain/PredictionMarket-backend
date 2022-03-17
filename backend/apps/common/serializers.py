@@ -1,5 +1,4 @@
 import re
-from rest_framework.exceptions import ValidationError
 
 from user.models import User
 from backend.libs import *
@@ -13,15 +12,13 @@ class SMSSerializer(EmptySerializer):
 
     def validate_method(self, method):
         if method not in SMS.TEMPLATE_ID.keys():
-            self.set_context(response_code.INVALID_PARAMS, "无效的方式")
-            raise ValidationError("无效的方式")
+            raise SerializerError("无效的方式", response_code.INVALID_PARAMS)
 
         return method
 
     def validate_phone(self, phone):
         if not re.search(re_patterns.PHONE, phone):
-            self.set_context(response_code.INVALID_PHONE, "无效的电话号码")
-            raise ValidationError("无效的电话号码")
+            raise SerializerError("无效的电话号码", response_code.INVALID_PHONE)
 
         return phone
 
@@ -30,8 +27,7 @@ class SMSSerializer(EmptySerializer):
             return code
 
         if not re.search(re_patterns.CODE, code):
-            self.set_context(response_code.INCORRECT_CODE_FORM, "验证码应当是四位数字")
-            raise ValidationError("验证码应当是四位数字")
+            raise SerializerError("验证码应当是四位数字", response_code.INCORRECT_CODE_FORM)
 
         return code
 
@@ -46,12 +42,10 @@ class SMSSerializer(EmptySerializer):
         is_register = User.objects.filter(phone=phone).exists()
 
         if is_register and method in ("register", "bind_phone"):
-            self.set_context(response_code.REGISTERED, "手机号已注册")
-            raise ValidationError("手机号已注册")
+            raise SerializerError("手机号已注册", response_code.REGISTERED)
 
         if not is_register and method in ("login", "reset_password", "unbind_phone"):
-            self.set_context(response_code.NOT_REGISTERED, "手机号未注册")
-            raise ValidationError("手机号未注册")
+            raise SerializerError("手机号未注册", response_code.NOT_REGISTERED)
 
         return attrs
 

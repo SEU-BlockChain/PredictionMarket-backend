@@ -8,10 +8,6 @@ class EmptySerializer(serializers.Serializer):
     def create(self, validated_data):
         pass
 
-    def set_context(self, code=None, msg=None):
-        self.context["code"] = code
-        self.context["msg"] = msg
-
 
 __all__ = [
     "EmptySerializer",

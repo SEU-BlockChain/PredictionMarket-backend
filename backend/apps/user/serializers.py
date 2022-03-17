@@ -2,7 +2,6 @@ import re
 import time
 from django.core.cache import cache
 from django.db.models import Q
-from rest_framework.exceptions import ValidationError
 
 from .models import *
 from backend.libs import *
@@ -15,25 +14,22 @@ class UsernameRegisterSerializer(EmptySerializer):
 
     def validate_username(self, username):
         if not re.search(re_patterns.USERNAME, username):
-            raise ValidationError("非法的用户名")
+            raise SerializerError("非法的用户名", response_code.INVALID_USERNAME)
 
         if User.objects.filter(username=username).exists():
-            self.set_context(response_code.USERNAME_REGISTERED, "用户名已注册")
-            raise ValidationError("用户名已注册")
+            raise SerializerError("用户名已注册", response_code.USERNAME_REGISTERED)
 
         return username
 
     def validate_password(self, password):
         if not re.search(re_patterns.PASSWORD, password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的密码")
-            raise ValidationError("非法的密码")
+            raise SerializerError("非法的密码", response_code.INVALID_PASSWORD)
 
         return password
 
     def validate_confirm_password(self, confirm_password):
         if not re.search(re_patterns.PASSWORD, confirm_password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的确认密码")
-            raise ValidationError("非法的确认密码")
+            raise SerializerError("非法的确认密码", response_code.INVALID_PASSWORD)
 
         return confirm_password
 
@@ -41,8 +37,7 @@ class UsernameRegisterSerializer(EmptySerializer):
         password = attrs.get("password")
         confirm_password = attrs.pop("confirm_password", None)
         if password != confirm_password:
-            self.set_context(response_code.INCONSISTENT_PASSWORD, "两次密码不一致")
-            raise ValidationError("密码与确认密码不一致")
+            raise SerializerError("密码与确认密码不一致", response_code.INCONSISTENT_PASSWORD)
 
         return attrs
 
@@ -56,15 +51,13 @@ class PhoneRegisterSerializer(EmptySerializer):
 
     def validate_phone(self, phone):
         if not re.search(re_patterns.PHONE, phone):
-            self.set_context(response_code.INVALID_PHONE, "无效的手机号码")
-            raise ValidationError("无效的手机号码")
+            raise SerializerError("无效的手机号码", response_code.INVALID_PHONE)
 
         return phone
 
     def validate_code(self, code):
         if not re.search(re_patterns.CODE, code):
-            self.set_context(response_code.INCORRECT_CODE_FORM, "验证码为4位数字")
-            raise ValidationError("验证码为4位数字")
+            raise SerializerError("验证码为4位数字", response_code.INCORRECT_CODE_FORM)
 
         return code
 
@@ -72,8 +65,7 @@ class PhoneRegisterSerializer(EmptySerializer):
         code = attrs.get("code")
         phone = attrs.get("phone")
         if code != cache.get("register" + phone):
-            self.set_context(response_code.INCORRECT_CODE, "验证码错误")
-            raise ValidationError("验证码错误")
+            raise SerializerError("验证码错误", response_code.INCORRECT_CODE)
 
         attrs.pop("code")
         attrs["password"] = phone
@@ -90,15 +82,13 @@ class LoginSerializer(EmptySerializer):
 
     def validate_username(self, username):
         if not re.search("|".join([re_patterns.USERNAME, re_patterns.PHONE]), username):
-            self.set_context(response_code.INVALID_USERNAME, "非法的用户名")
-            raise ValidationError("非法的用户名")
+            raise SerializerError("非法的用户名", response_code.INVALID_USERNAME)
 
         return username
 
     def validate_password(self, password):
         if not re.search("|".join([re_patterns.PASSWORD, re_patterns.CODE]), password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的密码")
-            raise ValidationError("非法的密码")
+            raise SerializerError("非法的密码", response_code.INVALID_PASSWORD)
 
         return password
 
@@ -107,12 +97,10 @@ class LoginSerializer(EmptySerializer):
         password = attrs.get("password")
         user = User.objects.filter(Q(username=username) | Q(phone=username), is_active=True).first()
         if not user:
-            self.set_context(response_code.USERNAME_NOT_REGISTERED, "用户不存在")
-            raise ValidationError("用户不存在")
+            raise SerializerError("用户不存在", response_code.USERNAME_NOT_REGISTERED)
 
         if not (user.check_password(password) or password == cache.get("login" + username)):
-            self.set_context(response_code.INCORRECT_PASSWORD, "密码错误")
-            raise ValidationError("密码错误")
+            raise SerializerError("密码错误", response_code.INCORRECT_PASSWORD)
 
         self.context["user"] = user
 
@@ -127,34 +115,29 @@ class ResetPasswordSerializer(EmptySerializer):
 
     def validate_phone(self, phone):
         if not re.search(re_patterns.PHONE, phone):
-            self.set_context(response_code.INVALID_PHONE, "无效的电话号码")
-            raise ValidationError("无效的电话号码")
+            raise SerializerError("无效的电话号码", response_code.INVALID_PHONE)
 
         is_register = User.objects.filter(phone=phone).exists()
         if not is_register:
-            self.set_context(response_code.NOT_REGISTERED, "手机号未绑定账号")
-            raise ValidationError("手机号未绑定账号")
+            raise SerializerError("手机号未绑定账号", response_code.NOT_REGISTERED)
 
         return phone
 
     def validate_code(self, code):
         if not re.search(re_patterns.CODE, code):
-            self.set_context(response_code.INCORRECT_CODE_FORM, "验证码格式错误")
-            raise ValidationError("验证码格式错误")
+            raise SerializerError("验证码格式错误", response_code.INCORRECT_CODE_FORM)
 
         return code
 
     def validate_password(self, password):
         if not re.search(re_patterns.PASSWORD, password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的密码")
-            raise ValidationError("非法的密码")
+            raise SerializerError("非法的密码", response_code.INVALID_PASSWORD)
 
         return password
 
     def validate_confirm_password(self, confirm_password):
         if not re.search(re_patterns.PASSWORD, confirm_password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的确认密码")
-            raise ValidationError("非法的确认密码")
+            raise SerializerError("非法的确认密码", response_code.INVALID_PASSWORD)
 
         return confirm_password
 
@@ -162,14 +145,12 @@ class ResetPasswordSerializer(EmptySerializer):
         password = attrs.get("password")
         confirm_password = attrs.get("confirm_password")
         if password != confirm_password:
-            self.set_context(response_code.INCONSISTENT_PASSWORD, "两次密码不一致")
-            raise ValidationError("密码与确认密码不一致")
+            raise SerializerError("密码与确认密码不一致", response_code.INCONSISTENT_PASSWORD)
 
         phone = attrs.get("phone")
         code = attrs.get("code")
         if code != cache.get("reset_password" + phone):
-            self.set_context(response_code.INCORRECT_CODE, "验证码错误")
-            raise ValidationError("验证码错误")
+            raise SerializerError("验证码错误", response_code.INCORRECT_CODE)
 
         return attrs
 
@@ -190,22 +171,19 @@ class ChangePasswordSerializer(EmptySerializer):
 
     def validate_old_password(self, old_password):
         if not re.search(re_patterns.PASSWORD, old_password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的密码")
-            raise ValidationError("非法的密码")
+            raise SerializerError("非法的密码", response_code.INVALID_PASSWORD)
 
         return old_password
 
     def validate_new_password(self, old_new_password):
         if not re.search(re_patterns.PASSWORD, old_new_password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的密码")
-            raise ValidationError("非法的密码")
+            raise SerializerError("非法的密码", response_code.INVALID_PASSWORD)
 
         return old_new_password
 
     def validate_confirm_password(self, confirm_password):
         if not re.search(re_patterns.PASSWORD, confirm_password):
-            self.set_context(response_code.INVALID_PASSWORD, "非法的密码")
-            raise ValidationError("非法的密码")
+            raise SerializerError("非法的密码", response_code.INVALID_PASSWORD)
 
         return confirm_password
 
@@ -213,8 +191,7 @@ class ChangePasswordSerializer(EmptySerializer):
         new_password = attrs.get("new_password")
         confirm_password = attrs.get("confirm_password")
         if new_password != confirm_password:
-            self.set_context(response_code.INCONSISTENT_PASSWORD, "两次密码不一致")
-            raise ValidationError("密码与确认密码不一致")
+            raise SerializerError("密码与确认密码不一致", response_code.INCONSISTENT_PASSWORD)
 
         return attrs
 
@@ -230,20 +207,17 @@ class BindPhoneView(EmptySerializer):
 
     def validate_phone(self, phone):
         if not re.search(re_patterns.PHONE, phone):
-            self.set_context(response_code.INVALID_PHONE, "无效的电话号码")
-            raise ValidationError("无效的电话号码")
+            raise SerializerError("无效的电话号码", response_code.INVALID_PHONE)
 
         is_register = User.objects.filter(phone=phone).exists()
         if is_register:
-            self.set_context(response_code.REGISTERED, "手机号已绑定账号")
-            raise ValidationError("手机号已绑定账号")
+            raise SerializerError("手机号已绑定账号", response_code.REGISTERED)
 
         return phone
 
     def validate_code(self, code):
         if not re.search(re_patterns.CODE, code):
-            self.set_context(response_code.INCORRECT_CODE_FORM, "验证码格式错误")
-            raise ValidationError("验证码格式错误")
+            raise SerializerError("验证码格式错误", response_code.INCORRECT_CODE_FORM)
 
         return code
 
@@ -251,8 +225,7 @@ class BindPhoneView(EmptySerializer):
         phone = attrs.get("phone")
         code = attrs.get("code")
         if code != cache.get("bind_phone" + phone):
-            self.set_context(response_code.INCORRECT_CODE, "验证码错误")
-            raise ValidationError("验证码错误")
+            raise SerializerError("验证码错误", response_code.INCORRECT_CODE)
 
         return attrs
 
@@ -271,20 +244,17 @@ class UnbindPhoneView(EmptySerializer):
 
     def validate_phone(self, phone):
         if not re.search(re_patterns.PHONE, phone):
-            self.set_context(response_code.INVALID_PHONE, "无效的电话号码")
-            raise ValidationError("无效的电话号码")
+            raise SerializerError("无效的电话号码", response_code.INVALID_PHONE)
 
         is_register = User.objects.filter(phone=phone).exists()
         if not is_register:
-            self.set_context(response_code.REGISTERED, "手机号未绑定账号")
-            raise ValidationError("手机号未绑定账号")
+            raise SerializerError("手机号未绑定账号", response_code.REGISTERED)
 
         return phone
 
     def validate_code(self, code):
         if not re.search(re_patterns.CODE, code):
-            self.set_context(response_code.INCORRECT_CODE_FORM, "验证码格式错误")
-            raise ValidationError("验证码格式错误")
+            raise SerializerError("验证码格式错误", response_code.INCORRECT_CODE_FORM)
 
         return code
 
@@ -292,8 +262,7 @@ class UnbindPhoneView(EmptySerializer):
         phone = attrs.get("phone")
         code = attrs.get("code")
         if code != cache.get("unbind_phone" + phone):
-            self.set_context(response_code.INCORRECT_CODE, "验证码错误")
-            raise ValidationError("验证码错误")
+            raise SerializerError("验证码错误", response_code.INCORRECT_CODE)
 
         return attrs
 
@@ -311,12 +280,10 @@ class UserInfoSerializer(EmptySerializer):
     def validate_username(self, username):
         is_register = User.objects.filter(username=username).exists()
         if is_register:
-            self.set_context(response_code.USERNAME_REGISTERED, "用户名已注册")
-            raise ValidationError("用户名已注册")
+            raise SerializerError("用户名已注册", response_code.USERNAME_REGISTERED)
 
         if not re.search(re_patterns.USERNAME, username):
-            self.set_context(response_code.INVALID_USERNAME, "非法的用户名")
-            raise ValidationError("非法的用户名")
+            raise SerializerError("非法的用户名", response_code.INVALID_USERNAME)
         return username
 
     def update(self, instance, validated_data):

@@ -13,19 +13,9 @@ class APIResponse(Response):
         :param content_type:响应编码
         :param kwargs: 额外响应内容
         """
-        dic = {"code": code or 100, "msg": msg or "成功", "result": result or ""}
+        dic = {"code": code or 100, "msg": msg or "成功", "result": result or {}}
         dic.update(kwargs)
         super().__init__(data=dic, status=status, headers=headers, content_type=content_type)
-
-
-def InValidParamsResponse(ser=None):
-    if not ser:
-        return APIResponse(response_code.INCOMPLETE_PARAMS, "缺失参数")
-
-    if ser.context:
-        return APIResponse(**ser.context, result=ser.errors)
-
-    return APIResponse(response_code.INCOMPLETE_PARAMS, "缺失参数", result=ser.errors)
 
 
 def UserInfoResponse(user, code, msg=None, token=False):
@@ -38,6 +28,5 @@ def UserInfoResponse(user, code, msg=None, token=False):
 
 __all__ = [
     "APIResponse",
-    "InValidParamsResponse",
     "UserInfoResponse"
 ]
