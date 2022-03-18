@@ -6,4 +6,4 @@ secret_key = COS_KEY
 
 region = "ap-nanjing"
 
-Bucket = "cp-1304907527"
+Bucket = "bc-1304907527"

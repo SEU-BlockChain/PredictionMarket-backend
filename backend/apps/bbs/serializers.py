@@ -1,12 +1,30 @@
-from user.models import User
+import re
+
+from lxml.etree import HTML
+
+from user.models import *
 from .models import *
 from backend.libs import *
 
 
+class MetalSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Metal
+        fields = "__all__"
+
+
 class AuthorSerializer(serializers.ModelSerializer):
+    metal = MetalSerializer(many=True)
+
     class Meta:
         model = User
-        fields = ["id", "username", "icon"]
+        fields = [
+            "id",
+            "username",
+            "icon",
+            "experience",
+            "metal"
+        ]
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -57,6 +75,7 @@ class ArticleSerializer(serializers.ModelSerializer):
             "view_num",
             "up_num",
             "down_num",
+            "comment_num",
             "create_time",
             "update_time",
         ]
@@ -66,6 +85,9 @@ class ArticleSerializer(serializers.ModelSerializer):
 
         action = self.context["view"].action
         self.context["action"] = action
+        if action == "create":
+            self.fields.pop("description")
+
         if action == "list":
             self.fields.pop("author_id")
             self.fields.pop("raw_content")
@@ -86,11 +108,32 @@ class ArticleSerializer(serializers.ModelSerializer):
             self.fields.pop("content")
             self.fields.pop("description")
 
+    def create(self, validated_data):
+        validated_data["description"] = self.get_description(validated_data["content"])
+        return super().create(validated_data)
+
     def update(self, instance: Articles, validated_data):
         if instance.author.id != validated_data.get("author_id"):
             raise SerializerError("无权限修改", response_code.NO_PERMISSION)
+        validated_data["description"] = self.get_description(validated_data["content"])
 
         return super().update(instance, validated_data)
+
+    def get_description(self, content):
+        text = HTML(content).xpath("string(.)")
+        if len(text) <= 64:
+            html_text = f'<div>{text}</div>'
+        else:
+            html_text = f'<div>{text[:64]}...</div>'
+
+        img_urls = re.findall('<img src="(.*?)" .*?/>', content)
+
+        if not img_urls:
+            return html_text
+
+        img_url = img_urls[0]
+        html_image = f'<img src="{img_url}"/>'
+        return html_text + html_image
 
 
 class CommentSerializer(serializers.ModelSerializer):

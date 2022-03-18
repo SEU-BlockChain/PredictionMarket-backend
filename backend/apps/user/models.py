@@ -16,13 +16,11 @@ class User(AbstractUser):
     group = models.ManyToManyField(to="Group",
                                    through='UserToGroup',
                                    through_fields=('user_id', 'group_id'),
-                                   related_name="G"
                                    )
 
     permission = models.ManyToManyField(to="Permission",
                                         through='UserToPermission',
                                         through_fields=('user_id', 'permission_id'),
-                                        related_name="P"
                                         )
 
 
@@ -77,4 +75,5 @@ class Message(models.Model):
 
 __all__ = [
     "User",
+    "Metal",
 ]

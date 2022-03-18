@@ -147,7 +147,8 @@ class CommentView(APIModelViewSet):
 class ChildrenCommentView(APIModelViewSet):
     http_method_names = ['get', 'post', "delete", 'head', 'options', 'trace']
     authentication_classes = [CommonJwtAuthentication]
-    queryset = Comments.objects.filter(is_active=True, parent_id__isnull=False, article__is_active=True)
+    queryset = Comments.objects.filter(is_active=True, parent_id__isnull=False, parent__is_active=True,
+                                       article__is_active=True)
     serializer_class = ChildrenCommentSerializer
     code = {
         "create": response_code.SUCCESS_POST_COMMENT,
