@@ -6,7 +6,8 @@ from .views import *
 router = SimpleRouter()
 router.register("article", ArticleView, "")
 router.register("^article/(?P<article_id>[0-9]+)/comment", CommentView, "")
-router.register("^article/(?P<article_id>[0-9]+)/comment/(?P<parent_id>[0-9]+)/children_comment", ChildrenCommentView, "")
+router.register("^article/(?P<article_id>[0-9]+)/comment/(?P<parent_id>[0-9]+)/children_comment", ChildrenCommentView,
+                "")
 
 urlpatterns = [
     path("", include(router.urls))

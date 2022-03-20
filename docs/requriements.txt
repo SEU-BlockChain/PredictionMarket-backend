@@ -12,6 +12,7 @@ django-redis==5.2.0
 djangorestframework==3.13.1
 djangorestframework-jwt==1.11.0
 idna==3.3
+lxml==4.8.0
 mysqlclient==2.1.0
 packaging==21.3
 pycryptodome==3.14.1

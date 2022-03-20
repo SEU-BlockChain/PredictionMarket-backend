@@ -24,6 +24,19 @@ class CommonJwtAuthentication(BaseJSONWebTokenAuthentication):
         raise AuthenticationFailed("缺少签名")
 
 
+class UserInfoAuthentication(BaseJSONWebTokenAuthentication):
+    def authenticate(self, request):
+        token = request.META.get("HTTP_AUTHORIZATION")
+        if token:
+            try:
+                payload = jwt_decode_handler(token)
+                user = self.authenticate_credentials(payload)
+                return user, token
+            except Exception:
+                pass
+        return None
+
+
 class StaffJwtAuthentication(CommonJwtAuthentication):
     def authenticate(self, request):
         user, token = super().authenticate(request)
@@ -35,5 +48,6 @@ class StaffJwtAuthentication(CommonJwtAuthentication):
 
 __all__ = [
     "CommonJwtAuthentication",
+    "UserInfoAuthentication",
     "StaffJwtAuthentication"
 ]

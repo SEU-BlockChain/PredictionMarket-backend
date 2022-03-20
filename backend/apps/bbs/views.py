@@ -1,5 +1,5 @@
 from rest_framework.decorators import action
-
+from django.db.models import F
 from .models import *
 from .serializers import *
 from backend.libs import *
@@ -22,18 +22,28 @@ class ArticleView(APIModelViewSet):
 
     def get_authenticators(self):
         if self.request.method == "GET":
-            return None
+            return [UserInfoAuthentication()]
 
         return super().get_authenticators()
 
     def get_queryset(self):
-        order = self.request.query_params.get("order", "-update_time")
+        order = self.request.query_params.get("order", "update_time")
         return self.queryset.order_by(order).all()
 
     def retrieve(self, request, *args, **kwargs):
-        if not self.get_queryset().filter(id=kwargs.get("pk")).exists():
+        article_id = kwargs.get("pk")
+        article = self.get_queryset().filter(id=article_id).first()
+        if not article:
             return APIResponse(response_code.INEXISTENT_ARTICLE, "文章不存在")
-        return super().retrieve(self, request, *args, **kwargs)
+
+        if not Views.objects.filter(article_id=article_id, name_id=request.user.id).exists() and request.user.id:
+            article.view_num += 1
+            article.save()
+            Views.objects.create(article_id=article_id, name_id=request.user.id)
+
+        serializer = self.get_serializer(article)
+
+        return APIResponse(self.code["retrieve"], "成功获取单条数据", serializer.data)
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
@@ -87,6 +97,21 @@ class ArticleView(APIModelViewSet):
 
         return APIResponse(response_code.SUCCESS_GET_ARTICLE, "成功获取文章信息", self.get_serializer(instance).data)
 
+    @action(["POST"], True)
+    def vote(self, request, pk):
+        if not Articles.objects.filter(id=pk, is_active=True).exists():
+            return APIResponse(response_code.INEXISTENT_ARTICLE, "文章不存在")
+
+        data = request.data.copy()
+        data["user_id"] = request.user.id
+        data["article_id"] = pk
+
+        ser = VoteArticleSerializer(data=data)
+        ser.is_valid(True)
+        ser.save()
+
+        return APIResponse(response_code.SUCCESS_VOTE_ARTICLE, "评价成功")
+
 
 class CommentView(APIModelViewSet):
     http_method_names = ['get', 'post', "delete", 'head', 'options', 'trace']
@@ -103,25 +128,27 @@ class CommentView(APIModelViewSet):
 
     def get_authenticators(self):
         if self.request.method == "GET":
-            return None
+            return [UserInfoAuthentication()]
 
         return super().get_authenticators()
 
     def get_queryset(self):
-        order = self.request.query_params.get("order", "id")
+        order = self.request.query_params.get("order", "-id")
         return self.queryset.filter(article_id=self.kwargs.get("article_id")).order_by(order).all()
 
     def create(self, request, *args, **kwargs):
         data = request.data.copy()
         data["author_id"] = request.user.id
-        data["article_id"] = kwargs.get("article_id")
+        data["article_id"] = article_id = kwargs.get("article_id")
         data["content"] = request.data.get("content")
 
         serializer = self.get_serializer(data=data)
         serializer.is_valid(True)
 
         self.perform_create(serializer)
-
+        article = Articles.objects.filter(id=article_id, is_active=True).first()
+        article.comment_num += 1
+        article.save()
         return APIResponse(self.code["create"], "成功添加数据", serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -143,6 +170,20 @@ class CommentView(APIModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         return APIResponse(response_code.METHOD_NOT_ALLOWED, "无效的请求方式")
 
+    @action(["POST"], True)
+    def vote(self, request, article_id, pk):
+        if not Comments.objects.filter(article_id=article_id, article__is_active=True, id=pk, is_active=True).exists():
+            return APIResponse(response_code.INEXISTENT_COMMENTS, "评论不存在")
+
+        data = request.data.copy()
+        data["user_id"] = request.user.id
+        data["comment_id"] = pk
+        ser = VoteCommentSerializer(data=data)
+        ser.is_valid(True)
+        ser.save()
+
+        return APIResponse(response_code.SUCCESS_VOTE_COMMENT, "评价成功")
+
 
 class ChildrenCommentView(APIModelViewSet):
     http_method_names = ['get', 'post', "delete", 'head', 'options', 'trace']
@@ -159,7 +200,7 @@ class ChildrenCommentView(APIModelViewSet):
 
     def get_authenticators(self):
         if self.request.method == "GET":
-            return None
+            return [UserInfoAuthentication()]
 
         return super().get_authenticators()
 
@@ -177,7 +218,12 @@ class ChildrenCommentView(APIModelViewSet):
         serializer.is_valid(True)
 
         self.perform_create(serializer)
-
+        parent = Comments.objects.filter(id=kwargs.get("parent_id")).first()
+        article = Articles.objects.filter(id=kwargs.get("article_id")).first()
+        parent.comment_num += 1
+        article.comment_num += 1
+        parent.save()
+        article.save()
         return APIResponse(self.code["create"], "成功添加数据", serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
