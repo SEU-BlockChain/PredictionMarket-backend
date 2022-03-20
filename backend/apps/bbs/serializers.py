@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 
 from lxml.etree import HTML
 from django.db.models import F
@@ -138,6 +139,7 @@ class ArticleSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         validated_data["description"] = self.get_description(validated_data["content"])
+        validated_data["update_time"] = datetime.now()
         return super().create(validated_data)
 
     def update(self, instance: Articles, validated_data):

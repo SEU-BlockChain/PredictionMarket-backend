@@ -1,5 +1,4 @@
 from rest_framework.decorators import action
-from django.db.models import F
 from .models import *
 from .serializers import *
 from backend.libs import *
@@ -11,7 +10,13 @@ class ArticleView(APIModelViewSet):
     queryset = Articles.objects.filter(is_active=True)
     serializer_class = ArticleSerializer
     filter_fields = ["author", "author__username", "category", "category__category"]
-    search_fields = ["title", "author", "author__username", "category", "category__category", "description", "content"]
+    search_fields = [
+        "title",
+        "author__username",
+        "category__category",
+        "description",
+        "content"
+    ]
     code = {
         "create": response_code.SUCCESS_POST_ARTICLE,
         "retrieve": response_code.SUCCESS_GET_ARTICLE,
@@ -27,7 +32,7 @@ class ArticleView(APIModelViewSet):
         return super().get_authenticators()
 
     def get_queryset(self):
-        order = self.request.query_params.get("order", "update_time")
+        order = self.request.query_params.get("order", "-update_time")
         return self.queryset.order_by(order).all()
 
     def retrieve(self, request, *args, **kwargs):
@@ -111,6 +116,19 @@ class ArticleView(APIModelViewSet):
         ser.save()
 
         return APIResponse(response_code.SUCCESS_VOTE_ARTICLE, "评价成功")
+
+    @action(["GET"], True)
+    def recommend(self, request, pk):
+        author_id = Articles.objects.filter(id=pk).first().author.id
+        if not author_id:
+            return APIResponse(response_code.INVALID_PARAMS, "缺少参数")
+
+        data = Articles.objects.filter(
+            is_active=True,
+            author_id=author_id
+        ).exclude(id=pk).order_by("-up_num")[:10].values("title", "id")
+
+        return APIResponse(response_code.SUCCESS_GET_RECOMMEND, "成功获取推荐", data)
 
 
 class CommentView(APIModelViewSet):
