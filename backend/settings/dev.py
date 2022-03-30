@@ -33,5 +33,6 @@ INSTALLED_APPS = [
 
     "bbs",
     "common",
-    "user"
+    "user",
+    "topic"
 ]

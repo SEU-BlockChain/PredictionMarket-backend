@@ -5,6 +5,7 @@ from .logger import log
 from .response import APIResponse
 from .errors import *
 from backend.libs.constants import response_code
+from qcloud_cos.cos_exception import CosException
 
 
 def common_exception_handler(exc, context):
@@ -14,6 +15,9 @@ def common_exception_handler(exc, context):
 
     if isinstance(exc, SerializerError):
         return APIResponse(exc.code, exc.msg)
+
+    if isinstance(exc, CosException):
+        return APIResponse(response_code.UPLOAD_FAILED, "文件上传失败")
 
     ret = exception_handler(exc, context)
     if not ret:
