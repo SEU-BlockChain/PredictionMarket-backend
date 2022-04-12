@@ -19,7 +19,7 @@ DATABASES = {
         'NAME': 'bc_db',
         'USER': 'root',
         'PASSWORD': MYSQL_KEY,
-        'HOST': '1.13.159.138'
+        'HOST': '127.0.0.1'
     }
 }
 

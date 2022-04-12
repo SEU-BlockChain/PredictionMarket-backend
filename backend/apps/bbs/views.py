@@ -2,6 +2,7 @@ from rest_framework.decorators import action
 from .models import *
 from .serializers import *
 from backend.libs import *
+from user.models import *
 
 
 class ArticleView(APIModelViewSet):
@@ -163,10 +164,12 @@ class CommentView(APIModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(True)
 
-        self.perform_create(serializer)
+        instance = serializer.save()
+        BBSReply.objects.create(comment=instance, is_article=True)
         article = Articles.objects.filter(id=article_id, is_active=True).first()
         article.comment_num += 1
         article.save()
+
         return APIResponse(self.code["create"], "成功添加数据", serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -235,7 +238,8 @@ class ChildrenCommentView(APIModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(True)
 
-        self.perform_create(serializer)
+        instance = serializer.save()
+        BBSReply.objects.create(comment=instance, is_article=False)
         parent = Comments.objects.filter(id=kwargs.get("parent_id")).first()
         article = Articles.objects.filter(id=kwargs.get("article_id")).first()
         parent.comment_num += 1

@@ -1,4 +1,5 @@
 from django.core.files.base import File
+from django.db.models import F, Q
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
@@ -118,8 +119,40 @@ class UserInfoView(ViewSet):
         return APIResponse(response_code.SUCCESS_CHANGE_ICON, "修改头像成功")
 
 
+class BBSReplyView(ViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+
+    def list(self, request):
+        instance = BBSReply.objects.filter(
+            ~Q(
+                comment__author=request.user
+            ) & Q(
+                is_ignore=False,
+                comment__is_active=True,
+                comment__article__is_active=True
+            )
+        ).filter(
+            Q(
+                is_article=True,
+                comment__article__author=request.user
+            ) | Q(
+                is_article=False,
+                comment__target__author=request.user
+            )
+        ).order_by(
+            "is_viewed",
+            "-comment_id__comment_time",
+        ).all()
+
+        pag = Pag()
+        page_list = pag.paginate_queryset(instance, request, view=self)
+        ser = BBSReplySerializer(page_list, many=True)
+        return pag.get_paginated_response([response_code.SUCCESS_GET_REPLY_LIST, ser.data])
+
+
 __all__ = [
     "RegisterView",
     "LoginView",
-    "UserInfoView"
+    "UserInfoView",
+    "BBSReplyView",
 ]

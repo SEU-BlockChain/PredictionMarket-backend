@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from backend.libs import response_code, getUserInfo, getToken
+from backend.libs import getUserInfo, getToken
 
 
 class APIResponse(Response):

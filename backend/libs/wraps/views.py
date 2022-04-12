@@ -65,5 +65,6 @@ class APIModelViewSet(ModelViewSet):
 
 
 __all__ = [
+    "Pag",
     "APIModelViewSet"
 ]

@@ -8,20 +8,23 @@ class User(AbstractUser):
     icon = models.CharField(max_length=32, default="icon/default.jpg", verbose_name="头像")
     experience = models.IntegerField(default=0, verbose_name="经验")
 
-    metal = models.ManyToManyField(to="Metal",
-                                   through='UserToMetal',
-                                   through_fields=('user_id', 'metal_id'),
-                                   )
+    metal = models.ManyToManyField(
+        to="Metal",
+        through='UserToMetal',
+        through_fields=('user', 'metal'),
+    )
 
-    group = models.ManyToManyField(to="Group",
-                                   through='UserToGroup',
-                                   through_fields=('user_id', 'group_id'),
-                                   )
+    group = models.ManyToManyField(
+        to="Group",
+        through='UserToGroup',
+        through_fields=('user', 'group'),
+    )
 
-    permission = models.ManyToManyField(to="Permission",
-                                        through='UserToPermission',
-                                        through_fields=('user_id', 'permission_id'),
-                                        )
+    permission = models.ManyToManyField(
+        to="Permission",
+        through='UserToPermission',
+        through_fields=('user', 'permission'),
+    )
 
 
 class Metal(models.Model):
@@ -30,8 +33,8 @@ class Metal(models.Model):
 
 
 class UserToMetal(models.Model):
-    user_id = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
-    metal_id = models.ForeignKey(to="Metal", on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
+    metal = models.ForeignKey(to="Metal", on_delete=models.DO_NOTHING)
     obtain_time = models.DateTimeField(auto_now_add=True, verbose_name="获取勋章时间")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
@@ -47,33 +50,33 @@ class Group(models.Model):
 
 
 class UserToPermission(models.Model):
-    user_id = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
-    permission_id = models.ForeignKey(to="Permission", on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
+    permission = models.ForeignKey(to="Permission", on_delete=models.DO_NOTHING)
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
 class UserToGroup(models.Model):
-    user_id = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
-    group_id = models.ForeignKey(to="Group", on_delete=models.DO_NOTHING)
+    user = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
+    group = models.ForeignKey(to="Group", on_delete=models.DO_NOTHING)
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
 class GroupToPermission(models.Model):
-    group_id = models.ForeignKey(to="Group", on_delete=models.DO_NOTHING)
-    permission_id = models.ForeignKey(to="Permission", on_delete=models.DO_NOTHING)
+    group = models.ForeignKey(to="Group", on_delete=models.DO_NOTHING)
+    permission = models.ForeignKey(to="Permission", on_delete=models.DO_NOTHING)
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
-class Message(models.Model):
-    receiver_id = models.ForeignKey(to="User", on_delete=models.DO_NOTHING, verbose_name="接收者", related_name="to_id")
-    sender_id = models.ForeignKey(to="User", on_delete=models.DO_NOTHING, verbose_name="发送者", related_name="from_id")
-    content = models.TextField(verbose_name="内容")
-    comment_time = models.DateTimeField(auto_now_add=True, verbose_name="私信时间")
+class BBSReply(models.Model):
+    comment = models.ForeignKey(to="bbs.Comments", on_delete=models.DO_NOTHING)
+
+    is_article = models.BooleanField(verbose_name="是否为文章回复")
     is_viewed = models.BooleanField(default=False, verbose_name="是否已读")
-    is_active = models.BooleanField(default=True, verbose_name="是否有效")
+    is_ignore = models.BooleanField(default=False, verbose_name="是否忽略")
 
 
 __all__ = [
     "User",
     "Metal",
+    "BBSReply",
 ]

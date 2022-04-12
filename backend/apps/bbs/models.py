@@ -27,7 +27,10 @@ class Comments(models.Model):
     down_num = models.IntegerField(default=0, verbose_name="点踩数")
     comment_num = models.IntegerField(default=0, verbose_name="评论数")
     comment_time = models.DateTimeField(auto_now_add=True, verbose_name="评论时间")
-    parent = models.ForeignKey(to="self", on_delete=models.DO_NOTHING, null=True, verbose_name="对应评论")
+    parent = models.ForeignKey(to="self", on_delete=models.DO_NOTHING, null=True, verbose_name="所属评论",
+                               related_name="parent_comments")
+    target = models.ForeignKey(to="self", on_delete=models.DO_NOTHING, null=True, verbose_name="对应评论",
+                               related_name="target_comments")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 

@@ -1,10 +1,41 @@
 import re
 import time
+
+from lxml.etree import HTML
 from django.core.cache import cache
 from django.db.models import Q
 
 from .models import *
+from bbs.models import *
 from backend.libs import *
+from bbs.serializers import AuthorSerializer
+
+
+class ArticleSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Articles
+        fields = [
+            "title",
+            "id"
+        ]
+
+
+class CommentSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer()
+    article = ArticleSerializer()
+    content = serializers.SerializerMethodField()
+
+    def get_content(self, instance: Comments):
+        return HTML(instance.content).xpath("string(.)")[:40]
+
+    class Meta:
+        model = Comments
+        fields = [
+            "content",
+            "comment_time",
+            "author",
+            "article"
+        ]
 
 
 class UsernameRegisterSerializer(EmptySerializer):
@@ -298,6 +329,19 @@ class UserInfoSerializer(EmptySerializer):
         return instance
 
 
+class BBSReplySerializer(serializers.ModelSerializer):
+    comment = CommentSerializer()
+
+    class Meta:
+        model = BBSReply
+        fields = [
+            "id",
+            "is_article",
+            "is_viewed",
+            "comment"
+        ]
+
+
 __all__ = [
     "UsernameRegisterSerializer",
     "PhoneRegisterSerializer",
@@ -306,5 +350,6 @@ __all__ = [
     "ChangePasswordSerializer",
     "BindPhoneView",
     "UnbindPhoneView",
-    "UserInfoSerializer"
+    "UserInfoSerializer",
+    "BBSReplySerializer"
 ]

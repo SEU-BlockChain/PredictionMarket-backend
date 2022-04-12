@@ -39,6 +39,7 @@ class ChildrenCommentSerializer(serializers.ModelSerializer):
     author_id = serializers.IntegerField(write_only=True)
     article_id = serializers.IntegerField(write_only=True)
     parent_id = serializers.IntegerField(write_only=True)
+    target_id = serializers.IntegerField(write_only=True)
     is_up = serializers.SerializerMethodField(read_only=True)
 
     def get_is_up(self, instance):
@@ -61,6 +62,7 @@ class ChildrenCommentSerializer(serializers.ModelSerializer):
             "author_id",
             "article_id",
             "parent_id",
+            "target_id",
             "content",
             "up_num",
             "down_num",
@@ -187,7 +189,7 @@ class CommentSerializer(serializers.ModelSerializer):
 
     def get_children_comment(self, instance: Comments):
         author_id = self.context["request"].user.id
-        if children := instance.comments_set.all().order_by("-up_num")[:2]:
+        if children := instance.parent_comments.all().order_by("-up_num")[:2]:
             data = ChildrenCommentSerializer(children, many=True).data
             for i in data:
                 if not author_id:
@@ -287,4 +289,6 @@ __all__ = [
     "CommentSerializer",
     "VoteCommentSerializer",
     "VoteArticleSerializer",
+
+    "AuthorSerializer"
 ]
