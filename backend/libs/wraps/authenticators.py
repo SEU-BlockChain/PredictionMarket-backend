@@ -4,7 +4,7 @@ from rest_framework_jwt.authentication import BaseJSONWebTokenAuthentication
 from rest_framework_jwt.authentication import jwt_decode_handler
 from rest_framework.exceptions import AuthenticationFailed
 
-
+list
 class CommonJwtAuthentication(BaseJSONWebTokenAuthentication):
     def authenticate(self, request):
         token = request.META.get("HTTP_AUTHORIZATION")
@@ -12,9 +12,9 @@ class CommonJwtAuthentication(BaseJSONWebTokenAuthentication):
             try:
                 payload = jwt_decode_handler(token)
             except jwt.ExpiredSignature:
-                raise AuthenticationFailed("签名过期")
+                raise AuthenticationFailed("登录信息过期，请重新登陆")
             except jwt.InvalidTokenError:
-                raise AuthenticationFailed("无效的签名")
+                raise AuthenticationFailed("登录信息变动，请重新登陆")
             except Exception as e:
                 raise AuthenticationFailed(str(e))
 

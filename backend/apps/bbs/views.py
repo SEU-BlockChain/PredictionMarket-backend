@@ -165,7 +165,7 @@ class CommentView(APIModelViewSet):
         serializer.is_valid(True)
 
         instance = serializer.save()
-        BBSReply.objects.create(comment=instance, is_article=True)
+        Reply.objects.create(bbs_comment=instance, reply_type=0)
         article = Articles.objects.filter(id=article_id, is_active=True).first()
         article.comment_num += 1
         article.save()
@@ -239,7 +239,7 @@ class ChildrenCommentView(APIModelViewSet):
         serializer.is_valid(True)
 
         instance = serializer.save()
-        BBSReply.objects.create(comment=instance, is_article=False)
+        Reply.objects.create(bbs_comment=instance, reply_type=1)
         parent = Comments.objects.filter(id=kwargs.get("parent_id")).first()
         article = Articles.objects.filter(id=kwargs.get("article_id")).first()
         parent.comment_num += 1

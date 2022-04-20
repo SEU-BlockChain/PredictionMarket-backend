@@ -36,7 +36,7 @@ def common_exception_handler(exc, context):
             return APIResponse(response_code.NOT_FOUND, "资源未找到", ret.data)
 
         if isinstance(exc, exceptions.AuthenticationFailed):
-            return APIResponse(response_code.NOT_LOGIN, "未登录", ret.data)
+            return APIResponse(response_code.NOT_LOGIN, ret.data.get("detail", "未登录"))
 
         return APIResponse(0, "错误", ret.data)
 

@@ -67,10 +67,23 @@ class GroupToPermission(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
-class BBSReply(models.Model):
-    comment = models.ForeignKey(to="bbs.Comments", on_delete=models.DO_NOTHING)
+class Reply(models.Model):
+    bbs_comment = models.ForeignKey(to="bbs.Comments", default=None, null=True, on_delete=models.DO_NOTHING)
 
-    is_article = models.BooleanField(verbose_name="是否为文章回复")
+    reply_type = models.IntegerField(verbose_name="""
+    回复类型
+    0   bbs根评论
+    1   bbs子评论
+    """)
+    reply_time = models.DateTimeField(auto_now_add=True, verbose_name="回复时间")
+    is_viewed = models.BooleanField(default=False, verbose_name="是否已读")
+    is_ignore = models.BooleanField(default=False, verbose_name="是否忽略")
+
+
+class At(models.Model):
+    comment = models.ForeignKey(to="bbs.Comments", on_delete=models.DO_NOTHING)
+    mentioned = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
+
     is_viewed = models.BooleanField(default=False, verbose_name="是否已读")
     is_ignore = models.BooleanField(default=False, verbose_name="是否忽略")
 
@@ -78,5 +91,5 @@ class BBSReply(models.Model):
 __all__ = [
     "User",
     "Metal",
-    "BBSReply",
+    "Reply",
 ]

@@ -7,7 +7,7 @@ router = SimpleRouter()
 router.register("", RegisterView, "register")
 router.register("", LoginView, "login")
 router.register("", UserInfoView, "user_info")
-router.register("reply/bbs", BBSReplyView, "bbs_reply")
+router.register("reply", ReplyView, "bbs_reply")
 
 urlpatterns = [
     path("", include(router.urls))

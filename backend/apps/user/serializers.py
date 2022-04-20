@@ -20,7 +20,7 @@ class ArticleSerializer(serializers.ModelSerializer):
         ]
 
 
-class CommentSerializer(serializers.ModelSerializer):
+class BBSRootCommentSerializer(serializers.ModelSerializer):
     author = AuthorSerializer()
     article = ArticleSerializer()
     content = serializers.SerializerMethodField()
@@ -32,7 +32,25 @@ class CommentSerializer(serializers.ModelSerializer):
         model = Comments
         fields = [
             "content",
-            "comment_time",
+            "author",
+            "article"
+        ]
+
+
+class BBSChildrenCommentSerializer(serializers.ModelSerializer):
+    author = AuthorSerializer()
+    article = ArticleSerializer()
+    content = serializers.SerializerMethodField()
+    target = BBSRootCommentSerializer()
+
+    def get_content(self, instance: Comments):
+        return HTML(instance.content).xpath("string(.)")[:40]
+
+    class Meta:
+        model = Comments
+        fields = [
+            "content",
+            "target",
             "author",
             "article"
         ]
@@ -329,14 +347,21 @@ class UserInfoSerializer(EmptySerializer):
         return instance
 
 
-class BBSReplySerializer(serializers.ModelSerializer):
-    comment = CommentSerializer()
+class ReplySerializer(serializers.ModelSerializer):
+    comment = serializers.SerializerMethodField()
+
+    def get_comment(self, instance: Reply):
+        if instance.reply_type == 0:
+            return BBSRootCommentSerializer(instance.bbs_comment).data
+        if instance.reply_type == 1:
+            return BBSChildrenCommentSerializer(instance.bbs_comment).data
 
     class Meta:
-        model = BBSReply
+        model = Reply
         fields = [
             "id",
-            "is_article",
+            "reply_type",
+            "reply_time",
             "is_viewed",
             "comment"
         ]
@@ -351,5 +376,5 @@ __all__ = [
     "BindPhoneView",
     "UnbindPhoneView",
     "UserInfoSerializer",
-    "BBSReplySerializer"
+    "ReplySerializer"
 ]

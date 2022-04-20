@@ -119,34 +119,38 @@ class UserInfoView(ViewSet):
         return APIResponse(response_code.SUCCESS_CHANGE_ICON, "修改头像成功")
 
 
-class BBSReplyView(ViewSet):
+class ReplyView(ViewSet):
     authentication_classes = [CommonJwtAuthentication]
 
     def list(self, request):
-        instance = BBSReply.objects.filter(
-            ~Q(
-                comment__author=request.user
-            ) & Q(
-                is_ignore=False,
-                comment__is_active=True,
-                comment__article__is_active=True
-            )
+        instance = Reply.objects.filter(
+            is_ignore=False,
         ).filter(
             Q(
-                is_article=True,
-                comment__article__author=request.user
+                ~Q(bbs_comment__author=request.user) & Q(
+                    reply_type=0,
+                    bbs_comment__is_active=True,
+                    bbs_comment__article__is_active=True,
+                    bbs_comment__article__author=request.user,
+                )
             ) | Q(
-                is_article=False,
-                comment__target__author=request.user
+                ~Q(bbs_comment__author=request.user) & Q(
+                    reply_type=1,
+                    bbs_comment__is_active=True,
+                    bbs_comment__article__is_active=True,
+                    bbs_comment__target__is_active=True,
+                    bbs_comment__parent__is_active=True,
+                    bbs_comment__target__author=request.user
+                )
             )
         ).order_by(
             "is_viewed",
-            "-comment_id__comment_time",
+            "-reply_time",
         ).all()
 
         pag = Pag()
         page_list = pag.paginate_queryset(instance, request, view=self)
-        ser = BBSReplySerializer(page_list, many=True)
+        ser = ReplySerializer(page_list, many=True)
         return pag.get_paginated_response([response_code.SUCCESS_GET_REPLY_LIST, ser.data])
 
 
@@ -154,5 +158,5 @@ __all__ = [
     "RegisterView",
     "LoginView",
     "UserInfoView",
-    "BBSReplyView",
+    "ReplyView",
 ]
