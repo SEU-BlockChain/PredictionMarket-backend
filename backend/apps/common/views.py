@@ -53,7 +53,7 @@ class ImageView(ViewSet):
 
     # 文章内图片上传
     @action(["POST"], False)
-    def image(self, request):
+    def icon(self, request):
         file = request.data.get("file")
         name = "".join(str(uuid4()).split("-"))
         form = str(file).split(".")[-1]

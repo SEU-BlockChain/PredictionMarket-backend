@@ -20,6 +20,7 @@ DATABASES = {
         'USER': 'root',
         'PASSWORD': MYSQL_KEY,
         'HOST': '127.0.0.1'
+        # 'HOST': '1.13.159.138'
     }
 }
 
@@ -31,8 +32,10 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
+    "ask",
     "bbs",
+    "column",
     "common",
+    "message",
     "user",
-    "topic"
 ]

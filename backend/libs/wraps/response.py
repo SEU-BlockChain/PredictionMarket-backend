@@ -1,5 +1,5 @@
 from rest_framework.response import Response
-from backend.libs import getUserInfo, getToken
+from backend.libs import getUserInfo, getOtherUserInfo, getToken, response_code
 
 
 class APIResponse(Response):
@@ -18,6 +18,10 @@ class APIResponse(Response):
         super().__init__(data=dic, status=status, headers=headers, content_type=content_type)
 
 
+def InvalidParamsResponse():
+    return APIResponse(response_code.INVALID_PARAMS, "缺少参数")
+
+
 def UserInfoResponse(user, code, msg=None, token=False):
     user_info = getUserInfo(user)
     if token:
@@ -26,7 +30,14 @@ def UserInfoResponse(user, code, msg=None, token=False):
     return APIResponse(code, msg, {"user": user_info})
 
 
+def OtherUserInfoResponse(self, user, code, msg=None):
+    user_info = getOtherUserInfo(self, user)
+    return APIResponse(code, msg, {"user": user_info})
+
+
 __all__ = [
     "APIResponse",
-    "UserInfoResponse"
+    "UserInfoResponse",
+    "OtherUserInfoResponse",
+    "InvalidParamsResponse",
 ]

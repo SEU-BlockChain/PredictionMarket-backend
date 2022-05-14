@@ -1,5 +1,6 @@
+import datetime
+
 from django.core.files.base import File
-from django.db.models import F, Q
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
@@ -9,7 +10,7 @@ from backend.libs import *
 from backend.utils.COS import *
 
 
-class RegisterView(ViewSet):
+class SignView(ViewSet):
     @action(["POST"], False)
     def register(self, request):
         method = request.data.get("method")
@@ -20,22 +21,20 @@ class RegisterView(ViewSet):
             ser = UsernameRegisterSerializer(data=request.data)
 
         ser.is_valid(True)
-
         user = ser.save()
 
-        return UserInfoResponse(user, response_code.SUCCESS_REGISTER, "注册成功", True)
+        return UserInfoResponse(user, response_code.SUCCESS_REGISTER, "注册成功")
 
-
-class LoginView(ViewSet):
     @action(["POST"], False)
     def login(self, request):
         ser = LoginSerializer(data=request.data)
 
         ser.is_valid(True)
-
         user = ser.context["user"]
+        user.last_login = datetime.datetime.now()
+        user.save()
 
-        return UserInfoResponse(user, response_code.SUCCESS_LOGIN, "登录成功", True)
+        return UserInfoResponse(user, response_code.SUCCESS_LOGIN, "登录成功")
 
 
 class UserInfoView(ViewSet):
@@ -45,7 +44,7 @@ class UserInfoView(ViewSet):
         return [CommonJwtAuthentication()]
 
     @action(["GET", "POST"], False)
-    def user_info(self, request):
+    def info(self, request):
         if request.method == "GET":
             return UserInfoResponse(request.user, response_code.SUCCESS_GET_USER_INFO, "成功获取用户信息")
         else:
@@ -54,7 +53,7 @@ class UserInfoView(ViewSet):
             ser.is_valid(True)
 
             user = ser.save()
-            return UserInfoResponse(user, response_code.SUCCESS_POST_USER_INFO, "成功修改用户信息", True)
+            return UserInfoResponse(user, response_code.SUCCESS_POST_USER_INFO, "成功修改用户信息")
 
     @action(["POST"], False)
     def reset_password(self, request):
@@ -119,44 +118,116 @@ class UserInfoView(ViewSet):
         return APIResponse(response_code.SUCCESS_CHANGE_ICON, "修改头像成功")
 
 
-class ReplyView(ViewSet):
+class OtherUserView(ViewSet):
     authentication_classes = [CommonJwtAuthentication]
 
-    def list(self, request):
-        instance = Reply.objects.filter(
-            is_ignore=False,
-        ).filter(
-            Q(
-                ~Q(bbs_comment__author=request.user) & Q(
-                    reply_type=0,
-                    bbs_comment__is_active=True,
-                    bbs_comment__article__is_active=True,
-                    bbs_comment__article__author=request.user,
-                )
-            ) | Q(
-                ~Q(bbs_comment__author=request.user) & Q(
-                    reply_type=1,
-                    bbs_comment__is_active=True,
-                    bbs_comment__article__is_active=True,
-                    bbs_comment__target__is_active=True,
-                    bbs_comment__parent__is_active=True,
-                    bbs_comment__target__author=request.user
-                )
-            )
-        ).order_by(
-            "is_viewed",
-            "-reply_time",
-        ).all()
+    @action(["GET"], True)
+    def info(self, request, pk):
+        return OtherUserInfoResponse(
+            request.user,
+            User.objects.get(id=pk),
+            response_code.SUCCESS_GET_USER_INFO,
+            "成功获取用户信息"
+        )
 
+
+class FollowView(ViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+
+    def get_authenticators(self):
+        if self.request.method == "GET":
+            return [UserInfoAuthentication()]
+
+        return super().get_authenticators()
+
+    @action(["GET"], True)
+    def as_follower(self, request, pk, *args, **kwargs):
+        instance = User.objects.get(id=pk).my_follow.all()
         pag = Pag()
-        page_list = pag.paginate_queryset(instance, request, view=self)
-        ser = ReplySerializer(page_list, many=True)
-        return pag.get_paginated_response([response_code.SUCCESS_GET_REPLY_LIST, ser.data])
+        paged_instance = pag.paginate_queryset(instance, request, view=self)
+        ser = FollowSerializer(paged_instance, many=True, context={"view": self})
+        return pag.get_paginated_response([response_code.SUCCESS_GET_FOLLOWED, ser.data])
+
+    @action(["GET"], True)
+    def as_followed(self, request, pk, *args, **kwargs):
+        instance = User.objects.get(id=pk).follow_me.all()
+        pag = Pag()
+        paged_instance = pag.paginate_queryset(instance, request, view=self)
+        ser = FollowSerializer(paged_instance, many=True, context={"view": self})
+        return pag.get_paginated_response([response_code.SUCCESS_GET_FOLLOWER, ser.data])
+
+    @action(["POST"], True)
+    def add(self, request, pk, *args, **kwargs):
+        if request.user.id == int(pk):
+            return APIResponse(response_code.NOT_SELF, "不能关注自己")
+        if request.user.my_follow.filter(followed=pk).exists():
+            return APIResponse(response_code.FOLLOWED, "你已经关注过他了")
+
+        user = User.objects.filter(id=pk)
+        if not user:
+            return APIResponse(response_code.INVALID_PK, "用户不存在")
+
+        Follow.add(request.user, user.first())
+        return APIResponse(response_code.SUCCESS_FOLLOW, "已关注")
+
+    @action(["POST"], True)
+    def remove(self, request, pk, *args, **kwargs):
+        if not request.user.my_follow.filter(followed=pk).exists():
+            return APIResponse(response_code.NOT_FOLLOWED, "未关注")
+
+        user = User.objects.filter(id=pk)
+        if not user:
+            return APIResponse(response_code.INVALID_PK, "用户不存在")
+
+        Follow.remove(request.user, user.first())
+        return APIResponse(response_code.SUCCESS_NOT_FOLLOW, "已取消关注")
+
+
+class BlackListView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    exclude = ["retrieve", "update"]
+
+    def list(self, request, *args, **kwargs):
+        instance = request.user.my_black.all().order_by("-create_time")
+        pag = Pag()
+        paged_instance = pag.paginate_queryset(instance, request, view=self)
+        ser = BlackListSerializer(paged_instance, many=True)
+        return pag.get_paginated_response([response_code.SUCCESS_GET_FOLLOWED, ser.data])
+
+    def create(self, request, *args, **kwargs):
+        pk = int(request.data.get("id", 0))
+
+        user = User.objects.filter(id=pk)
+        if not user:
+            return APIResponse(response_code.INVALID_PK, "用户不存在")
+
+        if request.user.id == pk:
+            return APIResponse(response_code.NOT_SELF, "不能拉黑自己")
+
+        if request.user.my_black.filter(blacked=pk).exists():
+            return APIResponse(response_code.BLACKED, "你已经拉黑过他了")
+
+        BlackList.add(request.user, user.first())
+        return APIResponse(response_code.SUCCESS_BLACKED, "已拉黑")
+
+    def destroy(self, request, *args, **kwargs):
+        pk = int(request.data.get("id", 0))
+
+        user = User.objects.filter(id=pk)
+        if not user:
+            return APIResponse(response_code.INVALID_PK, "用户不存在")
+
+        if not request.user.my_black.filter(blacked=pk).exists():
+            return APIResponse(response_code.NOT_BLACKED, "未拉黑")
+
+        BlackList.remove(request.user, user.first())
+        return APIResponse(response_code.SUCCESS_NOT_BLACKED, "已取消拉黑")
 
 
 __all__ = [
-    "RegisterView",
-    "LoginView",
+    "SignView",
     "UserInfoView",
-    "ReplyView",
+    "OtherUserView",
+    "FollowView",
+    "BlackListView",
 ]

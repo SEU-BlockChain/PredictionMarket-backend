@@ -2,8 +2,8 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.pagination import PageNumberPagination, OrderedDict
 from rest_framework.filters import SearchFilter
 from django_filters.rest_framework import DjangoFilterBackend
-
 from .response import APIResponse
+from rest_framework.exceptions import MethodNotAllowed
 
 
 class Pag(PageNumberPagination):
@@ -21,12 +21,18 @@ class Pag(PageNumberPagination):
 
 
 class APIModelViewSet(ModelViewSet):
-    http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options', 'trace']
+    exclude = ["destroy"]
     pagination_class = Pag
     filter_backends = (SearchFilter, DjangoFilterBackend)
     code = {}
 
+    def is_exclude(self):
+        if self.action in self.exclude:
+            raise MethodNotAllowed(self.action)
+
     def create(self, request, *args, **kwargs):
+        self.is_exclude()
+
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(True)
         self.perform_create(serializer)
@@ -34,12 +40,16 @@ class APIModelViewSet(ModelViewSet):
         return APIResponse(self.code["create"], "成功添加数据", serializer.data)
 
     def retrieve(self, request, *args, **kwargs):
+        self.is_exclude()
+
         instance = self.get_object()
         serializer = self.get_serializer(instance)
 
         return APIResponse(self.code["retrieve"], "成功获取单条数据", serializer.data)
 
     def update(self, request, *args, **kwargs):
+        self.is_exclude()
+
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
@@ -53,6 +63,8 @@ class APIModelViewSet(ModelViewSet):
         return APIResponse(self.code["update"], "已更新", serializer.data)
 
     def list(self, request, *args, **kwargs):
+        self.is_exclude()
+
         queryset = self.filter_queryset(self.get_queryset())
 
         page = self.paginate_queryset(queryset)

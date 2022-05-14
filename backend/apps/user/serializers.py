@@ -1,59 +1,11 @@
 import re
 import time
 
-from lxml.etree import HTML
 from django.core.cache import cache
 from django.db.models import Q
 
 from .models import *
-from bbs.models import *
 from backend.libs import *
-from bbs.serializers import AuthorSerializer
-
-
-class ArticleSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Articles
-        fields = [
-            "title",
-            "id"
-        ]
-
-
-class BBSRootCommentSerializer(serializers.ModelSerializer):
-    author = AuthorSerializer()
-    article = ArticleSerializer()
-    content = serializers.SerializerMethodField()
-
-    def get_content(self, instance: Comments):
-        return HTML(instance.content).xpath("string(.)")[:40]
-
-    class Meta:
-        model = Comments
-        fields = [
-            "content",
-            "author",
-            "article"
-        ]
-
-
-class BBSChildrenCommentSerializer(serializers.ModelSerializer):
-    author = AuthorSerializer()
-    article = ArticleSerializer()
-    content = serializers.SerializerMethodField()
-    target = BBSRootCommentSerializer()
-
-    def get_content(self, instance: Comments):
-        return HTML(instance.content).xpath("string(.)")[:40]
-
-    class Meta:
-        model = Comments
-        fields = [
-            "content",
-            "target",
-            "author",
-            "article"
-        ]
 
 
 class UsernameRegisterSerializer(EmptySerializer):
@@ -324,7 +276,7 @@ class UnbindPhoneView(EmptySerializer):
 
 class UserInfoSerializer(EmptySerializer):
     username = serializers.CharField(required=False)
-    description = serializers.CharField(max_length=40, required=False)
+    description = serializers.CharField(max_length=100, required=False)
 
     def validate_username(self, username):
         is_register = User.objects.filter(username=username).exists()
@@ -347,23 +299,38 @@ class UserInfoSerializer(EmptySerializer):
         return instance
 
 
-class ReplySerializer(serializers.ModelSerializer):
-    comment = serializers.SerializerMethodField()
-
-    def get_comment(self, instance: Reply):
-        if instance.reply_type == 0:
-            return BBSRootCommentSerializer(instance.bbs_comment).data
-        if instance.reply_type == 1:
-            return BBSChildrenCommentSerializer(instance.bbs_comment).data
+class FollowSerializer(serializers.ModelSerializer):
+    followed = User.serializer(["id", "username", "icon"])
+    follower = User.serializer(["id", "username", "icon"])
 
     class Meta:
-        model = Reply
+        model = Follow
         fields = [
             "id",
-            "reply_type",
-            "reply_time",
-            "is_viewed",
-            "comment"
+            "follower",
+            "followed",
+            "create_time"
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        action = self.context["view"].action
+        if action == "as_follower":
+            self.fields.pop("follower")
+        elif action == "as_followed":
+            self.fields.pop("followed")
+
+
+class BlackListSerializer(serializers.ModelSerializer):
+    blacked = User.serializer(["id", "username", "icon"])
+
+    class Meta:
+        model = BlackList
+        fields = [
+            "id",
+            "blacked",
+            "create_time"
         ]
 
 
@@ -376,5 +343,6 @@ __all__ = [
     "BindPhoneView",
     "UnbindPhoneView",
     "UserInfoSerializer",
-    "ReplySerializer"
+    "FollowSerializer",
+    "BlackListSerializer",
 ]

@@ -1,7 +1,7 @@
-from django.db import models
+from backend.libs import APIModel, models
 
 
-class Articles(models.Model):
+class Articles(APIModel):
     title = models.CharField(max_length=32, verbose_name="文章标题")
     author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="文章作者")
     category = models.ForeignKey(to="Categories", on_delete=models.DO_NOTHING, verbose_name="文章类别")
@@ -19,7 +19,7 @@ class Articles(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
-class Comments(models.Model):
+class Comments(APIModel):
     author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="评论作者")
     article = models.ForeignKey(to="Articles", on_delete=models.DO_NOTHING, verbose_name="对应文章")
     content = models.CharField(max_length=256, verbose_name="评论内容")
@@ -34,17 +34,17 @@ class Comments(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
-class Categories(models.Model):
+class Categories(APIModel):
     category = models.CharField(max_length=16, verbose_name="分类名")
 
 
-class Views(models.Model):
+class Views(APIModel):
     name = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="浏览者")
     view_time = models.DateTimeField(auto_now_add=True, verbose_name="浏览时间")
     article = models.ForeignKey(to="Articles", on_delete=models.DO_NOTHING, verbose_name="浏览帖子")
 
 
-class UpAndDowns(models.Model):
+class UpAndDowns(APIModel):
     author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="点赞点踩作者")
     article = models.ForeignKey(to="Articles", on_delete=models.DO_NOTHING, null=True, verbose_name="对应文章")
     comment = models.ForeignKey(to="Comments", on_delete=models.DO_NOTHING, null=True, verbose_name="对应评论")

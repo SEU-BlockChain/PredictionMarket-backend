@@ -1,12 +1,25 @@
-from django.db import models
 from django.contrib.auth.models import AbstractUser
+from rest_framework import serializers
+from django.db import models
 
 
 class User(AbstractUser):
-    description = models.CharField(max_length=40, null=True, default=None, verbose_name="简介")
+    description = models.CharField(max_length=105, null=True, default=None, verbose_name="简介")
     phone = models.CharField(max_length=11, null=True, default=None, verbose_name="手机号")
     icon = models.CharField(max_length=32, default="icon/default.jpg", verbose_name="头像")
     experience = models.IntegerField(default=0, verbose_name="经验")
+
+    fans_num = models.IntegerField(default=0, verbose_name="粉丝数")
+    attention_num = models.IntegerField(default=0, verbose_name="关注数")
+    up_num = models.IntegerField(default=0, verbose_name="获赞数")
+
+    message_settings = models.OneToOneField(
+        to="message.MessageSetting",
+        on_delete=models.DO_NOTHING,
+        verbose_name="私信设置",
+        null=True,
+        default=None
+    )
 
     metal = models.ManyToManyField(
         to="Metal",
@@ -26,6 +39,23 @@ class User(AbstractUser):
         through_fields=('user', 'permission'),
     )
 
+    @classmethod
+    def serializer(cls, field_list, *args, **kwargs):
+        class UserSerializer(serializers.ModelSerializer):
+            class Meta:
+                model = User
+                fields = field_list
+
+        return UserSerializer(*args, **kwargs)
+
+    @classmethod
+    def is_blacked(cls, user):
+        return cls.objects.black_me.filter(blacker=user).exists()
+
+    @classmethod
+    def is_black(cls, user):
+        return cls.objects.my_black.filter(blacked=user).exists()
+
 
 class Metal(models.Model):
     description = models.CharField(max_length=40, null=True, default=None, verbose_name="勋章简介")
@@ -44,14 +74,14 @@ class Permission(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
-class Group(models.Model):
-    description = models.CharField(max_length=40, null=True, default=None, verbose_name="权限组简介")
-    is_active = models.BooleanField(default=True, verbose_name="是否有效")
-
-
 class UserToPermission(models.Model):
     user = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
     permission = models.ForeignKey(to="Permission", on_delete=models.DO_NOTHING)
+    is_active = models.BooleanField(default=True, verbose_name="是否有效")
+
+
+class Group(models.Model):
+    description = models.CharField(max_length=40, null=True, default=None, verbose_name="权限组简介")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
@@ -67,29 +97,45 @@ class GroupToPermission(models.Model):
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 
-class Reply(models.Model):
-    bbs_comment = models.ForeignKey(to="bbs.Comments", default=None, null=True, on_delete=models.DO_NOTHING)
+class Follow(models.Model):
+    follower = models.ForeignKey(to="User", on_delete=models.DO_NOTHING, related_name="my_follow")
+    followed = models.ForeignKey(to="User", on_delete=models.DO_NOTHING, related_name="follow_me")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="关注时间")
 
-    reply_type = models.IntegerField(verbose_name="""
-    回复类型
-    0   bbs根评论
-    1   bbs子评论
-    """)
-    reply_time = models.DateTimeField(auto_now_add=True, verbose_name="回复时间")
-    is_viewed = models.BooleanField(default=False, verbose_name="是否已读")
-    is_ignore = models.BooleanField(default=False, verbose_name="是否忽略")
+    @classmethod
+    def add(cls, follower: User, followed: User):
+        cls.objects.create(follower=follower, followed=followed)
+        follower.attention_num += 1
+        followed.fans_num += 1
+        follower.save()
+        followed.save()
+
+    @classmethod
+    def remove(cls, follower: User, followed: User):
+        cls.objects.get(follower=follower, followed=followed).delete()
+        follower.attention_num -= 1
+        followed.fans_num -= 1
+        follower.save()
+        followed.save()
 
 
-class At(models.Model):
-    comment = models.ForeignKey(to="bbs.Comments", on_delete=models.DO_NOTHING)
-    mentioned = models.ForeignKey(to="User", on_delete=models.DO_NOTHING)
+class BlackList(models.Model):
+    blacker = models.ForeignKey(to="User", on_delete=models.DO_NOTHING, related_name="my_black")
+    blacked = models.ForeignKey(to="User", on_delete=models.DO_NOTHING, related_name="black_me")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="拉黑时间")
 
-    is_viewed = models.BooleanField(default=False, verbose_name="是否已读")
-    is_ignore = models.BooleanField(default=False, verbose_name="是否忽略")
+    @classmethod
+    def add(cls, blacker: User, blacked: User):
+        cls.objects.create(blacker=blacker, blacked=blacked)
+
+    @classmethod
+    def remove(cls, blacker: User, blacked: User):
+        cls.objects.get(blacker=blacker, blacked=blacked).delete()
 
 
 __all__ = [
     "User",
     "Metal",
-    "Reply",
+    "Follow",
+    "BlackList",
 ]

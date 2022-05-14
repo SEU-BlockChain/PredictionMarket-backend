@@ -2,11 +2,9 @@ from rest_framework.decorators import action
 from .models import *
 from .serializers import *
 from backend.libs import *
-from user.models import *
 
 
 class ArticleView(APIModelViewSet):
-    http_method_names = ['get', 'post', 'patch', "delete", 'head', 'options', 'trace']
     authentication_classes = [CommonJwtAuthentication]
     queryset = Articles.objects.filter(is_active=True)
     serializer_class = ArticleSerializer
@@ -133,7 +131,6 @@ class ArticleView(APIModelViewSet):
 
 
 class CommentView(APIModelViewSet):
-    http_method_names = ['get', 'post', "delete", 'head', 'options', 'trace']
     authentication_classes = [CommonJwtAuthentication]
     queryset = Comments.objects.filter(is_active=True, parent_id=None, article__is_active=True)
     serializer_class = CommentSerializer
@@ -164,8 +161,6 @@ class CommentView(APIModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(True)
 
-        instance = serializer.save()
-        Reply.objects.create(bbs_comment=instance, reply_type=0)
         article = Articles.objects.filter(id=article_id, is_active=True).first()
         article.comment_num += 1
         article.save()
@@ -207,7 +202,6 @@ class CommentView(APIModelViewSet):
 
 
 class ChildrenCommentView(APIModelViewSet):
-    http_method_names = ['get', 'post', "delete", 'head', 'options', 'trace']
     authentication_classes = [CommonJwtAuthentication]
     queryset = Comments.objects.filter(is_active=True, parent_id__isnull=False, parent__is_active=True,
                                        article__is_active=True)
@@ -238,8 +232,6 @@ class ChildrenCommentView(APIModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(True)
 
-        instance = serializer.save()
-        Reply.objects.create(bbs_comment=instance, reply_type=1)
         parent = Comments.objects.filter(id=kwargs.get("parent_id")).first()
         article = Articles.objects.filter(id=kwargs.get("article_id")).first()
         parent.comment_num += 1
