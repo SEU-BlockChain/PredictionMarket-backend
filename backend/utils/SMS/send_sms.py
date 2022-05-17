@@ -1,7 +1,7 @@
 from qcloudsms_py import SmsSingleSender
 
 from .settings import *
-from backend.libs import log
+from backend.libs.wraps.logger import log
 
 
 def send_sms(phone, code, usage, *args):

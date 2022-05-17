@@ -1,6 +1,9 @@
 from django.contrib.auth.models import AbstractUser
-from rest_framework import serializers
 from django.db import models
+from message.models import MessageSetting
+
+
+
 
 
 class User(AbstractUser):
@@ -17,8 +20,8 @@ class User(AbstractUser):
         to="message.MessageSetting",
         on_delete=models.DO_NOTHING,
         verbose_name="私信设置",
-        null=True,
-        default=None
+        default=None,
+        null=True
     )
 
     metal = models.ManyToManyField(
@@ -39,14 +42,9 @@ class User(AbstractUser):
         through_fields=('user', 'permission'),
     )
 
-    @classmethod
-    def serializer(cls, field_list, *args, **kwargs):
-        class UserSerializer(serializers.ModelSerializer):
-            class Meta:
-                model = User
-                fields = field_list
-
-        return UserSerializer(*args, **kwargs)
+    def __init__(self, *args, **kwargs):
+        self._black_list = None
+        super().__init__(*args, **kwargs)
 
     @classmethod
     def is_blacked(cls, user):
@@ -55,6 +53,15 @@ class User(AbstractUser):
     @classmethod
     def is_black(cls, user):
         return cls.objects.my_black.filter(blacked=user).exists()
+
+    @property
+    def black_list(self):
+        if self._black_list is None:
+            if self.is_anonymous:
+                self._black_list = []
+            else:
+                self._black_list = self.my_black.values_list('blacked').first() or []
+        return self._black_list
 
 
 class Metal(models.Model):
@@ -131,11 +138,3 @@ class BlackList(models.Model):
     @classmethod
     def remove(cls, blacker: User, blacked: User):
         cls.objects.get(blacker=blacker, blacked=blacked).delete()
-
-
-__all__ = [
-    "User",
-    "Metal",
-    "Follow",
-    "BlackList",
-]

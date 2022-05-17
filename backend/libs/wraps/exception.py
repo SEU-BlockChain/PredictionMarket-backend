@@ -41,6 +41,3 @@ def common_exception_handler(exc, context):
         return APIResponse(0, "错误", ret.data)
 
 
-__all__ = [
-    "common_exception_handler",
-]

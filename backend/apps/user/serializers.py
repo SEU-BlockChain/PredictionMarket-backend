@@ -5,7 +5,9 @@ from django.core.cache import cache
 from django.db.models import Q
 
 from .models import *
-from backend.libs import *
+from backend.libs.wraps.serializers import EmptySerializer, OtherUserSerializer, serializers
+from backend.libs.constants import re_patterns, response_code
+from backend.libs.wraps.errors import SerializerError
 
 
 class UsernameRegisterSerializer(EmptySerializer):
@@ -300,8 +302,14 @@ class UserInfoSerializer(EmptySerializer):
 
 
 class FollowSerializer(serializers.ModelSerializer):
-    followed = User.serializer(["id", "username", "icon"])
-    follower = User.serializer(["id", "username", "icon"])
+    followed = serializers.SerializerMethodField()
+    follower = serializers.SerializerMethodField()
+
+    def get_followed(self, instance: Follow):
+        return OtherUserSerializer(instance.followed, context=self.context).data
+
+    def get_follower(self, instance: Follow):
+        return OtherUserSerializer(instance.follower, context=self.context).data
 
     class Meta:
         model = Follow
@@ -314,7 +322,6 @@ class FollowSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-
         action = self.context["view"].action
         if action == "as_follower":
             self.fields.pop("follower")
@@ -323,7 +330,10 @@ class FollowSerializer(serializers.ModelSerializer):
 
 
 class BlackListSerializer(serializers.ModelSerializer):
-    blacked = User.serializer(["id", "username", "icon"])
+    blacked = serializers.SerializerMethodField()
+
+    def get_blacked(self, instance: BlackList):
+        return OtherUserSerializer(instance.blacked, context=self.context).data
 
     class Meta:
         model = BlackList
@@ -332,17 +342,3 @@ class BlackListSerializer(serializers.ModelSerializer):
             "blacked",
             "create_time"
         ]
-
-
-__all__ = [
-    "UsernameRegisterSerializer",
-    "PhoneRegisterSerializer",
-    "LoginSerializer",
-    "ResetPasswordSerializer",
-    "ChangePasswordSerializer",
-    "BindPhoneView",
-    "UnbindPhoneView",
-    "UserInfoSerializer",
-    "FollowSerializer",
-    "BlackListSerializer",
-]

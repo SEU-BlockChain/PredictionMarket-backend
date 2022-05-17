@@ -4,9 +4,10 @@ from django.core.files.base import File
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
-from .models import *
 from .serializers import *
-from backend.libs import *
+from backend.libs.wraps.response import UserInfoResponse, OtherUserInfoResponse, APIResponse
+from backend.libs.wraps.authenticators import CommonJwtAuthentication, UserInfoAuthentication
+from backend.libs.wraps.views import APIModelViewSet, Pag
 from backend.utils.COS import *
 
 
@@ -124,7 +125,7 @@ class OtherUserView(ViewSet):
     @action(["GET"], True)
     def info(self, request, pk):
         return OtherUserInfoResponse(
-            request.user,
+            self,
             User.objects.get(id=pk),
             response_code.SUCCESS_GET_USER_INFO,
             "成功获取用户信息"
@@ -142,7 +143,14 @@ class FollowView(ViewSet):
 
     @action(["GET"], True)
     def as_follower(self, request, pk, *args, **kwargs):
-        instance = User.objects.get(id=pk).my_follow.all()
+        name = request.query_params.get("name", "")
+        instance = User.objects.get(id=pk).my_follow.all().filter(
+            followed__username__icontains=name,
+        ).exclude(
+            followed__in=request.user.black_list
+        ).order_by(
+            "-create_time"
+        )
         pag = Pag()
         paged_instance = pag.paginate_queryset(instance, request, view=self)
         ser = FollowSerializer(paged_instance, many=True, context={"view": self})
@@ -150,7 +158,14 @@ class FollowView(ViewSet):
 
     @action(["GET"], True)
     def as_followed(self, request, pk, *args, **kwargs):
-        instance = User.objects.get(id=pk).follow_me.all()
+        name = request.query_params.get("name", "")
+        instance = User.objects.get(id=pk).follow_me.all().filter(
+            follower__username__icontains=name,
+        ).exclude(
+            follower__in=request.user.black_list
+        ).order_by(
+            "-create_time"
+        )
         pag = Pag()
         paged_instance = pag.paginate_queryset(instance, request, view=self)
         ser = FollowSerializer(paged_instance, many=True, context={"view": self})
@@ -188,20 +203,20 @@ class BlackListView(APIModelViewSet):
     exclude = ["retrieve", "update"]
 
     def list(self, request, *args, **kwargs):
-        instance = request.user.my_black.all().order_by("-create_time")
+        name = request.query_params.get("name", "")
+        instance = request.user.my_black.all().filter(blacked__username__icontains=name).order_by("-create_time")
         pag = Pag()
         paged_instance = pag.paginate_queryset(instance, request, view=self)
-        ser = BlackListSerializer(paged_instance, many=True)
-        return pag.get_paginated_response([response_code.SUCCESS_GET_FOLLOWED, ser.data])
+        ser = BlackListSerializer(paged_instance, many=True, context={"view": self})
+        return pag.get_paginated_response([response_code.SUCCESS_GET_BLACKED, ser.data])
 
     def create(self, request, *args, **kwargs):
-        pk = int(request.data.get("id", 0))
-
+        pk = request.data.get("id", None)
         user = User.objects.filter(id=pk)
         if not user:
             return APIResponse(response_code.INVALID_PK, "用户不存在")
 
-        if request.user.id == pk:
+        if request.user.id == int(pk):
             return APIResponse(response_code.NOT_SELF, "不能拉黑自己")
 
         if request.user.my_black.filter(blacked=pk).exists():
@@ -211,8 +226,7 @@ class BlackListView(APIModelViewSet):
         return APIResponse(response_code.SUCCESS_BLACKED, "已拉黑")
 
     def destroy(self, request, *args, **kwargs):
-        pk = int(request.data.get("id", 0))
-
+        pk = kwargs.get("pk", None)
         user = User.objects.filter(id=pk)
         if not user:
             return APIResponse(response_code.INVALID_PK, "用户不存在")
@@ -222,12 +236,3 @@ class BlackListView(APIModelViewSet):
 
         BlackList.remove(request.user, user.first())
         return APIResponse(response_code.SUCCESS_NOT_BLACKED, "已取消拉黑")
-
-
-__all__ = [
-    "SignView",
-    "UserInfoView",
-    "OtherUserView",
-    "FollowView",
-    "BlackListView",
-]

@@ -1,5 +1,6 @@
 from rest_framework.response import Response
-from backend.libs import getUserInfo, getOtherUserInfo, getToken, response_code
+from backend.libs.wraps.serializers import UserSerializer, OtherUserSerializer
+from backend.libs.constants import response_code
 
 
 class APIResponse(Response):
@@ -22,22 +23,11 @@ def InvalidParamsResponse():
     return APIResponse(response_code.INVALID_PARAMS, "缺少参数")
 
 
-def UserInfoResponse(user, code, msg=None, token=False):
-    user_info = getUserInfo(user)
-    if token:
-        return APIResponse(code, msg, {"user": user_info, "token": getToken(user)})
-
+def UserInfoResponse(user, code, msg=None):
+    user_info = UserSerializer(user).data
     return APIResponse(code, msg, {"user": user_info})
 
 
-def OtherUserInfoResponse(self, user, code, msg=None):
-    user_info = getOtherUserInfo(self, user)
+def OtherUserInfoResponse(view, user, code, msg=None):
+    user_info = OtherUserSerializer(user, context={"view": view, "request": view.request}).data
     return APIResponse(code, msg, {"user": user_info})
-
-
-__all__ = [
-    "APIResponse",
-    "UserInfoResponse",
-    "OtherUserInfoResponse",
-    "InvalidParamsResponse",
-]

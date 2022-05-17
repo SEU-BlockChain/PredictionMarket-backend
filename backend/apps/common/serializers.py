@@ -1,8 +1,10 @@
 import re
 
 from user.models import User
-from backend.libs import *
 from backend.utils import SMS
+from backend.libs.constants import response_code, re_patterns
+from backend.libs.wraps.serializers import EmptySerializer, serializers
+from backend.libs.wraps.errors import SerializerError
 
 
 class SMSSerializer(EmptySerializer):
@@ -48,8 +50,3 @@ class SMSSerializer(EmptySerializer):
             raise SerializerError("手机号未注册", response_code.NOT_REGISTERED)
 
         return attrs
-
-
-__all__ = [
-    "SMSSerializer"
-]

@@ -8,7 +8,10 @@ from rest_framework.viewsets import ViewSet
 
 from .serializers import *
 from backend.utils import SMS, COS
-from backend.libs import *
+from backend.libs.constants import response_code
+from backend.libs.wraps.response import APIResponse
+from backend.libs.wraps.authenticators import CommonJwtAuthentication
+from backend.libs.wraps.logger import log
 
 
 class SMSCodeView(ViewSet):
@@ -53,7 +56,7 @@ class ImageView(ViewSet):
 
     # 文章内图片上传
     @action(["POST"], False)
-    def icon(self, request):
+    def article(self, request):
         file = request.data.get("file")
         name = "".join(str(uuid4()).split("-"))
         form = str(file).split(".")[-1]
@@ -71,9 +74,3 @@ class ImageView(ViewSet):
         COS.put_obj(file, image)
 
         return APIResponse(response_code.SUCCESS_POST_ARTICLE_IMAGE, "成功", {"data": image})
-
-
-__all__ = [
-    "SMSCodeView",
-    "ImageView",
-]

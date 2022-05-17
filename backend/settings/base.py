@@ -88,7 +88,7 @@ MIDDLEWARE = [
 # }
 
 REST_FRAMEWORK = {
-    'EXCEPTION_HANDLER': 'backend.libs.common_exception_handler',
+    'EXCEPTION_HANDLER': 'backend.libs.wraps.exception.common_exception_handler',
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],

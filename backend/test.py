@@ -9,5 +9,5 @@ if __name__ == '__main__':
 
     from user import models
 
-    a: models.User = models.User.objects.get(id__gte=1)
-    print(a.my_follow.all())
+    a = models.User.objects.get(id=1).my_black.values_list('blacked').first()
+    print(a)

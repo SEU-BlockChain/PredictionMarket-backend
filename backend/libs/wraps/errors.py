@@ -3,7 +3,3 @@ class SerializerError(Exception):
         self.msg = msg
         self.code = code
 
-
-__all__ = [
-    "SerializerError",
-]

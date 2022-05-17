@@ -3,78 +3,56 @@ from datetime import datetime
 
 from lxml.etree import HTML
 from django.db.models import F
-from user.models import *
+
 from .models import *
-from backend.libs import *
+from backend.libs.wraps.serializers import EmptySerializer, serializers, APIModelSerializer, OtherUserSerializer
+from backend.libs.wraps.errors import SerializerError
+from backend.libs.constants import response_code
 
 
-class MetalSerializer(serializers.ModelSerializer):
+class CategorySerializer(APIModelSerializer):
     class Meta:
-        model = Metal
+        model = Category
         fields = "__all__"
 
 
-class AuthorSerializer(serializers.ModelSerializer):
-    metal = MetalSerializer(many=True)
-
-    class Meta:
-        model = User
-        fields = [
-            "id",
-            "username",
-            "icon",
-            "experience",
-            "metal"
-        ]
-
-
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Categories
-        fields = "__all__"
-
-
-class ChildrenCommentSerializer(serializers.ModelSerializer):
-    author = AuthorSerializer(read_only=True)
-    author_id = serializers.IntegerField(write_only=True)
-    article_id = serializers.IntegerField(write_only=True)
-    parent_id = serializers.IntegerField(write_only=True)
-    target_id = serializers.IntegerField(write_only=True)
-    is_up = serializers.SerializerMethodField(read_only=True)
-
-    def get_is_up(self, instance):
-        if request := self.context.get("request"):
-            author_id = request.user.id
-            if not author_id:
-                return None
-            comment_id = instance.id
-            obj = UpAndDowns.objects.filter(comment_id=comment_id, author_id=author_id).first()
-            if not obj:
-                return None
-
-            return obj.is_up
-
-    class Meta:
-        model = Comments
-        fields = [
-            "id",
-            "author",
-            "author_id",
-            "article_id",
-            "parent_id",
-            "target_id",
-            "content",
-            "up_num",
-            "down_num",
-            "comment_time",
-            "is_up",
-        ]
-
-
-class ArticleSerializer(serializers.ModelSerializer):
-    author = AuthorSerializer(read_only=True)
+class DraftSerializer(APIModelSerializer):
+    author = OtherUserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
-    author_id = serializers.IntegerField(write_only=True)
+    category_id = serializers.IntegerField(write_only=True)
+
+    class Meta:
+        model = Draft
+        fields = [
+            "id",
+            "title",
+            "author",
+            "category",
+            "category_id",
+            "update_time",
+            "raw_content",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        action = self.context["view"].action
+        self.context["action"] = action
+
+        if action == "list":
+            self.fields.pop("raw_content")
+            self.fields.pop("author")
+        if action == "retrieve":
+            self.fields.pop("author")
+
+    def create(self, validated_data):
+        validated_data["author_id"] = self.context["request"].user.id
+        return super().create(validated_data)
+
+
+class ArticleSerializer(APIModelSerializer):
+    author = OtherUserSerializer(read_only=True)
+    category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
     is_up = serializers.SerializerMethodField(read_only=True)
 
@@ -84,19 +62,18 @@ class ArticleSerializer(serializers.ModelSerializer):
             return None
 
         article_id = instance.id
-        obj = UpAndDowns.objects.filter(article_id=article_id, author_id=author_id).first()
+        obj = UpAndDown.objects.filter(article_id=article_id, author_id=author_id).first()
         if not obj:
             return None
 
         return obj.is_up
 
     class Meta:
-        model = Articles
+        model = Article
         fields = [
             "id",
             "title",
             "author",
-            "author_id",
             "category",
             "category_id",
             "description",
@@ -120,7 +97,6 @@ class ArticleSerializer(serializers.ModelSerializer):
             self.fields.pop("description")
 
         if action == "list":
-            self.fields.pop("author_id")
             self.fields.pop("raw_content")
             self.fields.pop("category_id")
             self.fields.pop("content")
@@ -140,15 +116,14 @@ class ArticleSerializer(serializers.ModelSerializer):
             self.fields.pop("description")
 
     def create(self, validated_data):
+        validated_data["author"] = self.context["request"].user
         validated_data["description"] = self.get_description(validated_data["content"])
         validated_data["update_time"] = datetime.now()
         return super().create(validated_data)
 
-    def update(self, instance: Articles, validated_data):
-        if instance.author.id != validated_data.get("author_id"):
-            raise SerializerError("无权限修改", response_code.NO_PERMISSION)
+    def update(self, instance: Article, validated_data):
         validated_data["description"] = self.get_description(validated_data["content"])
-
+        validated_data["update_time"] = datetime.now()
         return super().update(instance, validated_data)
 
     def get_description(self, content):
@@ -168,8 +143,8 @@ class ArticleSerializer(serializers.ModelSerializer):
         return html_text + html_image
 
 
-class CommentSerializer(serializers.ModelSerializer):
-    author = AuthorSerializer(read_only=True)
+class CommentSerializer(APIModelSerializer):
+    author = OtherUserSerializer(read_only=True)
     children_comment = serializers.SerializerMethodField(read_only=True)
     author_id = serializers.IntegerField(write_only=True)
     article_id = serializers.IntegerField(write_only=True)
@@ -181,13 +156,13 @@ class CommentSerializer(serializers.ModelSerializer):
             return None
 
         comment_id = instance.id
-        obj = UpAndDowns.objects.filter(comment_id=comment_id, author_id=author_id).first()
+        obj = UpAndDown.objects.filter(comment_id=comment_id, author_id=author_id).first()
         if not obj:
             return None
 
         return obj.is_up
 
-    def get_children_comment(self, instance: Comments):
+    def get_children_comment(self, instance):
         author_id = self.context["request"].user.id
         if children := instance.parent_comments.all().order_by("-up_num")[:2]:
             data = ChildrenCommentSerializer(children, many=True).data
@@ -196,7 +171,7 @@ class CommentSerializer(serializers.ModelSerializer):
                     i["is_up"] = None
                 else:
                     comment_id = i["id"]
-                    obj = UpAndDowns.objects.filter(comment_id=comment_id, author_id=author_id).first()
+                    obj = UpAndDown.objects.filter(comment_id=comment_id, author_id=author_id).first()
                     if not obj:
                         i["is_up"] = None
                     else:
@@ -206,7 +181,7 @@ class CommentSerializer(serializers.ModelSerializer):
             return []
 
     class Meta:
-        model = Comments
+        model = Comment
         fields = [
             "id",
             "author",
@@ -222,6 +197,43 @@ class CommentSerializer(serializers.ModelSerializer):
         ]
 
 
+class ChildrenCommentSerializer(APIModelSerializer):
+    author = OtherUserSerializer(read_only=True)
+    author_id = serializers.IntegerField(write_only=True)
+    article_id = serializers.IntegerField(write_only=True)
+    parent_id = serializers.IntegerField(write_only=True)
+    target_id = serializers.IntegerField(write_only=True)
+    is_up = serializers.SerializerMethodField(read_only=True)
+
+    def get_is_up(self, instance):
+        if request := self.context.get("request"):
+            author_id = request.user.id
+            if not author_id:
+                return None
+            comment_id = instance.id
+            obj = UpAndDown.objects.filter(comment_id=comment_id, author_id=author_id).first()
+            if not obj:
+                return None
+
+            return obj.is_up
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "author",
+            "author_id",
+            "article_id",
+            "parent_id",
+            "target_id",
+            "content",
+            "up_num",
+            "down_num",
+            "comment_time",
+            "is_up",
+        ]
+
+
 class VoteArticleSerializer(EmptySerializer):
     article_id = serializers.CharField()
     user_id = serializers.CharField()
@@ -232,10 +244,10 @@ class VoteArticleSerializer(EmptySerializer):
         user_id = validated_data.get("user_id")
         is_up = validated_data.get("is_up")
 
-        instance = UpAndDowns.objects.filter(article_id=article_id, author_id=user_id).first()
+        instance = UpAndDown.objects.filter(article_id=article_id, author_id=user_id).first()
 
         if not instance:
-            instance = UpAndDowns.objects.create(article_id=article_id, is_up=is_up, author_id=user_id)
+            instance = UpAndDown.objects.create(article_id=article_id, is_up=is_up, author_id=user_id)
             self._update_num(article_id, is_up, 1 - is_up)
         else:
             if instance.is_up == is_up:
@@ -250,7 +262,7 @@ class VoteArticleSerializer(EmptySerializer):
 
     @staticmethod
     def _update_num(article_id, up, down):
-        Articles.objects.filter(id=article_id).update(up_num=F("up_num") + up, down_num=F("down_num") + down)
+        Article.objects.filter(id=article_id).update(up_num=F("up_num") + up, down_num=F("down_num") + down)
 
 
 class VoteCommentSerializer(EmptySerializer):
@@ -262,10 +274,10 @@ class VoteCommentSerializer(EmptySerializer):
         comment_id = validated_data.get("comment_id")
         user_id = validated_data.get("user_id")
         is_up = validated_data.get("is_up")
-        instance = UpAndDowns.objects.filter(comment_id=comment_id, author_id=user_id).first()
+        instance = UpAndDown.objects.filter(comment_id=comment_id, author_id=user_id).first()
 
         if not instance:
-            instance = UpAndDowns.objects.create(comment_id=comment_id, is_up=is_up, author_id=user_id)
+            instance = UpAndDown.objects.create(comment_id=comment_id, is_up=is_up, author_id=user_id)
             self._update_num(comment_id, is_up, 1 - is_up)
         else:
             if instance.is_up == is_up:
@@ -280,15 +292,4 @@ class VoteCommentSerializer(EmptySerializer):
 
     @staticmethod
     def _update_num(comment_id, up, down):
-        Comments.objects.filter(id=comment_id).update(up_num=F("up_num") + up, down_num=F("down_num") + down)
-
-
-__all__ = [
-    "ArticleSerializer",
-    "ChildrenCommentSerializer",
-    "CommentSerializer",
-    "VoteCommentSerializer",
-    "VoteArticleSerializer",
-
-    "AuthorSerializer"
-]
+        Comment.objects.filter(id=comment_id).update(up_num=F("up_num") + up, down_num=F("down_num") + down)

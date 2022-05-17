@@ -1,4 +1,4 @@
-from backend.libs import APIModel, models
+from backend.libs.wraps.models import APIModel, models
 from functools import partial
 
 UserField = partial(models.ForeignKey, to="user.User", on_delete=models.DO_NOTHING)
@@ -22,8 +22,8 @@ class AbstractOrigin(APIModel):
         (BBS_COMMENT, "论坛评论"),
     ]
     origin = models.IntegerField(choices=STATUS_CHOICES, null=True, default=None, verbose_name="来源")
-    bbs_articles = models.ForeignKey(to="bbs.Articles", null=True, default=None, on_delete=models.DO_NOTHING)
-    bbs_comments = models.ForeignKey(to="bbs.Comments", null=True, default=None, on_delete=models.DO_NOTHING)
+    bbs_articles = models.ForeignKey(to="bbs.Article", null=True, default=None, on_delete=models.DO_NOTHING)
+    bbs_comments = models.ForeignKey(to="bbs.Comment", null=True, default=None, on_delete=models.DO_NOTHING)
 
     class Meta:
         abstract = True

@@ -5,6 +5,8 @@ from rest_framework_jwt.authentication import jwt_decode_handler
 from rest_framework.exceptions import AuthenticationFailed
 
 list
+
+
 class CommonJwtAuthentication(BaseJSONWebTokenAuthentication):
     def authenticate(self, request):
         token = request.META.get("HTTP_AUTHORIZATION")
@@ -44,10 +46,3 @@ class StaffJwtAuthentication(CommonJwtAuthentication):
             raise AuthenticationFailed("不是管理员账号")
 
         return user, token
-
-
-__all__ = [
-    "CommonJwtAuthentication",
-    "UserInfoAuthentication",
-    "StaffJwtAuthentication"
-]
