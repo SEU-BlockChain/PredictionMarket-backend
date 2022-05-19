@@ -27,8 +27,18 @@ class ArticleView(APIModelViewSet):
     authentication_classes = [CommonJwtAuthentication]
     queryset = Article.objects.filter(is_active=True)
     serializer_class = ArticleSerializer
-    filter_fields = ["author", "author__username", "category_id"]
-    ordering_fields = ["update_time", "create_time", "view_num", "up_num", "comment_num"]
+    filter_fields = [
+        "author",
+        "author__username",
+        "category_id"
+    ]
+    ordering_fields = [
+        "update_time",
+        "create_time",
+        "view_num",
+        "up_num",
+        "comment_num"
+    ]
     search_fields = [
         "title",
         "author__username",
@@ -72,8 +82,6 @@ class ArticleView(APIModelViewSet):
             return APIResponse(response_code.INEXISTENT_ARTICLE, "文章不存在")
 
         instance = query_set.filter(id=pk).first()
-        if request.user.id != instance.author.id:
-            return APIResponse(response_code.NO_PERMISSION, "无权限修改")
 
         return APIResponse(response_code.SUCCESS_GET_ARTICLE, "成功获取文章信息", self.get_serializer(instance).data)
 
@@ -92,25 +100,14 @@ class ArticleView(APIModelViewSet):
 
         return APIResponse(response_code.SUCCESS_VOTE_ARTICLE, "评价成功")
 
-    @action(["GET"], True)
-    def recommend(self, request, pk):
-        author_id = Article.objects.filter(id=pk).first().author.id
-        if not author_id:
-            return APIResponse(response_code.INVALID_PARAMS, "缺少参数")
-
-        data = Article.objects.filter(
-            is_active=True,
-            author_id=author_id
-        ).exclude(id=pk).order_by("-up_num")[:10].values("title", "id")
-
-        return APIResponse(response_code.SUCCESS_GET_RECOMMEND, "成功获取推荐", data)
-
 
 class CommentView(APIModelViewSet):
     authentication_classes = [CommonJwtAuthentication]
     queryset = Comment.objects.filter(is_active=True, parent_id=None, article__is_active=True)
     serializer_class = CommentSerializer
-    filter_fields = ["author"]
+    filter_fields = ["author_id"]
+    exclude = ["update", "retrieve"]
+    ordering_fields = ["comment_time", "up_num", "comment_num"]
     code = {
         "create": response_code.SUCCESS_POST_COMMENT,
         "retrieve": response_code.SUCCESS_GET_COMMENT,
@@ -125,42 +122,19 @@ class CommentView(APIModelViewSet):
         return super().get_authenticators()
 
     def get_queryset(self):
-        order = self.request.query_params.get("order", "-id")
-        return self.queryset.filter(article_id=self.kwargs.get("article_id")).order_by(order).all()
+        queryset = self.queryset.filter(article_id=self.kwargs.get("article_id"))
+        if self.action in ["vote", "list"]:
+            return queryset
 
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        data["author_id"] = request.user.id
-        data["article_id"] = article_id = kwargs.get("article_id")
-        data["content"] = request.data.get("content")
+        return queryset.filter(author=self.request.user)
 
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(True)
+    def after_create(self, instance: Comment, request, *args, **kwargs):
+        instance.article.comment_num += 1
+        instance.article.save()
 
-        article = Article.objects.filter(id=article_id, is_active=True).first()
-        article.comment_num += 1
-        article.save()
-
-        return APIResponse(self.code["create"], "成功添加数据", serializer.data)
-
-    def destroy(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
-        article_id = kwargs.get("article_id")
-        comment_id = kwargs.get("pk")
-        if not queryset.filter(id=comment_id, article_id=article_id).exists():
-            return APIResponse(response_code.INEXISTENT_COMMENTS, "评论不存在")
-
-        if not queryset.filter(id=comment_id, article_id=article_id, author_id=request.user).exists():
-            return APIResponse(response_code.NO_PERMISSION, "没有权限")
-
-        instance = queryset.filter(id=comment_id, article_id=article_id, author_id=request.user).first()
-        instance.is_active = False
-        instance.save()
-
-        return APIResponse(self.code["destroy"], "评论已删除")
-
-    def retrieve(self, request, *args, **kwargs):
-        return APIResponse(response_code.METHOD_NOT_ALLOWED, "无效的请求方式")
+    def after_destory(self, instance: Comment, request, *args, **kwargs):
+        instance.article.comment_num -= 1
+        instance.article.save()
 
     @action(["POST"], True)
     def vote(self, request, article_id, pk):
@@ -199,22 +173,18 @@ class ChildrenCommentView(APIModelViewSet):
         order = self.request.query_params.get("order", "id")
         return self.queryset.filter(parent_id=self.kwargs.get("parent_id")).order_by(order).all()
 
-    def create(self, request, *args, **kwargs):
-        data = request.data.copy()
-        data["author_id"] = request.user.id
-        data["article_id"] = kwargs.get("article_id")
-        data["parent_id"] = kwargs.get("parent_id")
-        data["content"] = request.data.get("content")
-        serializer = self.get_serializer(data=data)
-        serializer.is_valid(True)
+    def before_create(self, request, *args, **kwargs):
+        request.data["article_id"] = kwargs.pop("article_id", None)
+        request.data["parent_id"] = kwargs.pop("parent_id", None)
 
-        parent = Comment.objects.filter(id=kwargs.get("parent_id")).first()
-        article = Article.objects.filter(id=kwargs.get("article_id")).first()
-        parent.comment_num += 1
-        article.comment_num += 1
-        parent.save()
-        article.save()
-        return APIResponse(self.code["create"], "成功添加数据", serializer.data)
+    def after_create(self, instance: Comment, request, *args, **kwargs):
+        instance.article.comment_num += 1
+        instance.article.save()
+        instance.parent.comment_num += 1
+        instance.parent.save()
 
-    def retrieve(self, request, *args, **kwargs):
-        return APIResponse(response_code.METHOD_NOT_ALLOWED, "无效的请求方式")
+    def after_destory(self, instance: Comment, request, *args, **kwargs):
+        instance.article.comment_num -= 1
+        instance.article.save()
+        instance.parent.comment_num -= 1
+        instance.article.save()

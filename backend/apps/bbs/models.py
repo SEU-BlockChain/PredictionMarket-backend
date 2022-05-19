@@ -1,4 +1,5 @@
 from backend.libs.wraps.models import APIModel, models
+import datetime
 
 
 class Draft(APIModel):
@@ -24,7 +25,8 @@ class Article(APIModel):
     comment_num = models.IntegerField(default=0, verbose_name="评论数")
 
     create_time = models.DateTimeField(auto_now_add=True, verbose_name="发帖时间")
-    update_time = models.DateTimeField(null=True, default=None, verbose_name="最后更新时间")
+    update_time = models.DateTimeField(default=datetime.datetime.now, verbose_name="最后更新时间")
+    comment_time = models.DateTimeField(default=datetime.datetime.now, verbose_name="最后更新时间")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
 

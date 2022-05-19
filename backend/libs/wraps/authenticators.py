@@ -4,8 +4,6 @@ from rest_framework_jwt.authentication import BaseJSONWebTokenAuthentication
 from rest_framework_jwt.authentication import jwt_decode_handler
 from rest_framework.exceptions import AuthenticationFailed
 
-list
-
 
 class CommonJwtAuthentication(BaseJSONWebTokenAuthentication):
     def authenticate(self, request):
@@ -23,7 +21,7 @@ class CommonJwtAuthentication(BaseJSONWebTokenAuthentication):
             user = self.authenticate_credentials(payload)
             return user, token
 
-        raise AuthenticationFailed("缺少签名")
+        raise AuthenticationFailed("未登录")
 
 
 class UserInfoAuthentication(BaseJSONWebTokenAuthentication):

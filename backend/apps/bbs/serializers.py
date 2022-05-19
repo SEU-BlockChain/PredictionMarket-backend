@@ -17,7 +17,6 @@ class CategorySerializer(APIModelSerializer):
 
 
 class DraftSerializer(APIModelSerializer):
-    author = OtherUserSerializer(read_only=True)
     category = CategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
 
@@ -26,7 +25,6 @@ class DraftSerializer(APIModelSerializer):
         fields = [
             "id",
             "title",
-            "author",
             "category",
             "category_id",
             "update_time",
@@ -38,12 +36,20 @@ class DraftSerializer(APIModelSerializer):
 
         action = self.context["view"].action
         self.context["action"] = action
-
+        remove = []
         if action == "list":
-            self.fields.pop("raw_content")
-            self.fields.pop("author")
+            remove = [
+                "category_id",
+                "raw_content"
+            ]
         if action == "retrieve":
-            self.fields.pop("author")
+            remove = [
+                "category_id",
+                "update_time"
+            ]
+
+        for i in remove:
+            self.fields.pop(i)
 
     def create(self, validated_data):
         validated_data["author_id"] = self.context["request"].user.id
@@ -93,37 +99,76 @@ class ArticleSerializer(APIModelSerializer):
 
         action = self.context["view"].action
         self.context["action"] = action
+        remove = []
         if action == "create":
-            self.fields.pop("description")
+            remove = [
+                "description",
+                "author",
+                "category",
+                "view_num",
+                "up_num",
+                "down_num",
+                "comment_num",
+                "create_time",
+                "update_time",
+                "is_up"
+            ]
 
         if action == "list":
-            self.fields.pop("raw_content")
-            self.fields.pop("category_id")
-            self.fields.pop("content")
+            remove = [
+                "category_id",
+                "content",
+                "raw_content"
+            ]
 
         if action == "update":
-            self.fields.pop("category_id")
-            self.fields.pop("raw_content")
-            self.fields.pop("description")
+            remove = [
+                "author",
+                "category",
+                "category_id",
+                "description",
+                "view_num",
+                "up_num",
+                "down_num",
+                "comment_num",
+                "create_time",
+                "update_time",
+                "is_up"
+            ]
 
         if action == "retrieve":
-            self.fields.pop("raw_content")
+            remove = [
+                "category_id",
+                "description",
+                "raw_content",
+            ]
 
         if action == "raw":
-            self.fields.pop("category")
-            self.fields.pop("category_id")
-            self.fields.pop("content")
-            self.fields.pop("description")
+            remove = [
+                "author",
+                "category_id",
+                "description",
+                "content",
+                "view_num",
+                "up_num",
+                "down_num",
+                "comment_num",
+                "create_time",
+                "update_time",
+                "is_up"
+            ]
+
+        for i in remove:
+            self.fields.pop(i)
 
     def create(self, validated_data):
         validated_data["author"] = self.context["request"].user
         validated_data["description"] = self.get_description(validated_data["content"])
-        validated_data["update_time"] = datetime.now()
         return super().create(validated_data)
 
     def update(self, instance: Article, validated_data):
         validated_data["description"] = self.get_description(validated_data["content"])
-        validated_data["update_time"] = datetime.now()
+        validated_data["update_time"] = datetime.datetime.now()
         return super().update(instance, validated_data)
 
     def get_description(self, content):
@@ -146,8 +191,6 @@ class ArticleSerializer(APIModelSerializer):
 class CommentSerializer(APIModelSerializer):
     author = OtherUserSerializer(read_only=True)
     children_comment = serializers.SerializerMethodField(read_only=True)
-    author_id = serializers.IntegerField(write_only=True)
-    article_id = serializers.IntegerField(write_only=True)
     is_up = serializers.SerializerMethodField(read_only=True)
 
     def get_is_up(self, instance):
@@ -162,10 +205,10 @@ class CommentSerializer(APIModelSerializer):
 
         return obj.is_up
 
-    def get_children_comment(self, instance):
+    def get_children_comment(self, instance: Comment):
         author_id = self.context["request"].user.id
-        if children := instance.parent_comments.all().order_by("-up_num")[:2]:
-            data = ChildrenCommentSerializer(children, many=True).data
+        if children := instance.parent_comments.all().filter(is_active=True).order_by("-up_num")[:2]:
+            data = ChildrenCommentSerializer(children, many=True, context=self.context).data
             for i in data:
                 if not author_id:
                     i["is_up"] = None
@@ -196,13 +239,17 @@ class CommentSerializer(APIModelSerializer):
             "is_up"
         ]
 
+    def create(self, validated_data):
+        validated_data["author"] = self.context["request"].user
+        validated_data["article_id"] = self.context["kwargs"].get("article_id")
+        return super().create(validated_data)
+
 
 class ChildrenCommentSerializer(APIModelSerializer):
     author = OtherUserSerializer(read_only=True)
-    author_id = serializers.IntegerField(write_only=True)
     article_id = serializers.IntegerField(write_only=True)
     parent_id = serializers.IntegerField(write_only=True)
-    target_id = serializers.IntegerField(write_only=True)
+    target_id = serializers.IntegerField(allow_null=True, default=None)
     is_up = serializers.SerializerMethodField(read_only=True)
 
     def get_is_up(self, instance):
@@ -232,6 +279,33 @@ class ChildrenCommentSerializer(APIModelSerializer):
             "comment_time",
             "is_up",
         ]
+
+    def create(self, validated_data):
+        content = validated_data["content"]
+        if validated_data.get("target_id"):
+            validated_data["content"] = self._add_mention(content, validated_data)
+
+        validated_data["author"] = self.context["request"].user
+        return super().create(validated_data)
+
+    def _add_mention(self, content, validated_data):
+        article_id = validated_data["article_id"]
+        parent_id = validated_data["parent_id"]
+        target_id = validated_data["target_id"]
+        comment = Comment.objects.filter(
+            id=target_id,
+            article_id=article_id,
+            parent_id=parent_id
+        )
+        if not comment:
+            raise SerializerError("评论不存在", response_code.NOT_FOUND)
+        comment = comment.first()
+        content = "".join([
+            content[:3],
+            f'回复&nbsp;<span style="color: rgb(54, 88, 226);">@{comment.author.username}:</span>',
+            content[3:]
+        ])
+        return content
 
 
 class VoteArticleSerializer(EmptySerializer):

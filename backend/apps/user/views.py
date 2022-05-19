@@ -120,7 +120,7 @@ class UserInfoView(ViewSet):
 
 
 class OtherUserView(ViewSet):
-    authentication_classes = [CommonJwtAuthentication]
+    authentication_classes = [UserInfoAuthentication]
 
     @action(["GET"], True)
     def info(self, request, pk):
@@ -153,7 +153,7 @@ class FollowView(ViewSet):
         )
         pag = Pag()
         paged_instance = pag.paginate_queryset(instance, request, view=self)
-        ser = FollowSerializer(paged_instance, many=True, context={"view": self})
+        ser = FollowSerializer(paged_instance, many=True, context={"view": self, "request": request})
         return pag.get_paginated_response([response_code.SUCCESS_GET_FOLLOWED, ser.data])
 
     @action(["GET"], True)
@@ -168,7 +168,7 @@ class FollowView(ViewSet):
         )
         pag = Pag()
         paged_instance = pag.paginate_queryset(instance, request, view=self)
-        ser = FollowSerializer(paged_instance, many=True, context={"view": self})
+        ser = FollowSerializer(paged_instance, many=True, context={"view": self, "request": request})
         return pag.get_paginated_response([response_code.SUCCESS_GET_FOLLOWER, ser.data])
 
     @action(["POST"], True)

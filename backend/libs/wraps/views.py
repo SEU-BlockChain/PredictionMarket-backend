@@ -3,6 +3,7 @@ from rest_framework.pagination import PageNumberPagination, OrderedDict
 from rest_framework.filters import SearchFilter, OrderingFilter
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.exceptions import MethodNotAllowed
+from rest_framework.request import Request
 
 from .response import APIResponse
 
@@ -31,14 +32,14 @@ class APIModelViewSet(ModelViewSet):
         if self.action in self.exclude:
             raise MethodNotAllowed(self.action)
 
-    def create(self, request, *args, **kwargs):
+    def create(self, request: Request, *args, **kwargs):
         self.is_exclude()
 
         if before := getattr(self, f"before_{self.action}", None):
             if response := before(request, *args, **kwargs):
                 return response
 
-        serializer = self.get_serializer(data=request.data)
+        serializer = self.get_serializer(data=request.data, args=args, kwargs=kwargs)
         serializer.is_valid(True)
         instance = serializer.save()
 
@@ -56,7 +57,7 @@ class APIModelViewSet(ModelViewSet):
                 return response
 
         instance = self.get_object()
-        serializer = self.get_serializer(instance)
+        serializer = self.get_serializer(instance, args=args, kwargs=kwargs)
 
         if after := getattr(self, f"after_{self.action}", None):
             if response := after(instance, request, *args, **kwargs):
@@ -73,7 +74,7 @@ class APIModelViewSet(ModelViewSet):
 
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer = self.get_serializer(instance, data=request.data, partial=partial, args=args, kwargs=kwargs)
         serializer.is_valid(True)
 
         if getattr(instance, '_prefetched_objects_cache', None):
@@ -98,14 +99,14 @@ class APIModelViewSet(ModelViewSet):
 
         page = self.paginate_queryset(queryset)
         if page is not None:
-            serializer = self.get_serializer(page, many=True)
+            serializer = self.get_serializer(page, many=True, args=args, kwargs=kwargs)
             return self.get_paginated_response((self.code["list"], serializer.data))
 
         if after := getattr(self, f"after_{self.action}", None):
             if response := after(queryset, request, *args, **kwargs):
                 return response
 
-        serializer = self.get_serializer(queryset, many=True)
+        serializer = self.get_serializer(queryset, many=True, args=args, kwargs=kwargs)
         return APIResponse(self.code["list"], "成功获取此页数据", serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -124,3 +125,19 @@ class APIModelViewSet(ModelViewSet):
                 return response
 
         return APIResponse(self.code["destroy"], "成功删除数据")
+
+    def get_serializer(self, *args, **kwargs):
+        _args = kwargs.pop("args", None)
+        _kwargs = kwargs.pop("kwargs", None)
+        serializer_class = self.get_serializer_class()
+        kwargs.setdefault('context', self.get_context(_args, _kwargs))
+        return serializer_class(*args, **kwargs)
+
+    def get_context(self, _args, _kwargs):
+        return {
+            'request': self.request,
+            'format': self.format_kwarg,
+            'view': self,
+            'args': _args,
+            'kwargs': _kwargs
+        }
