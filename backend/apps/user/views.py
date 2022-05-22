@@ -5,10 +5,13 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
 from .serializers import *
+from message.models import Dynamic
 from backend.libs.wraps.response import UserInfoResponse, OtherUserInfoResponse, APIResponse
 from backend.libs.wraps.authenticators import CommonJwtAuthentication, UserInfoAuthentication
 from backend.libs.wraps.views import APIModelViewSet, Pag
 from backend.utils.COS import *
+from bbs.models import Comment
+from bbs.serializers import SelfCommentSerializer
 
 
 class SignView(ViewSet):
@@ -118,6 +121,32 @@ class UserInfoView(ViewSet):
         put_obj(file, path)
         return APIResponse(response_code.SUCCESS_CHANGE_ICON, "修改头像成功")
 
+    @action(["GET"], False)
+    def comment(self, request):
+        instance = Comment.objects.filter(
+            article__is_active=True,
+            author=request.user,
+            is_active=True
+        ).order_by(
+            "-comment_time"
+        )
+        pag = Pag()
+        paged_instance = pag.paginate_queryset(instance, request, view=self)
+        ser = SelfCommentSerializer(paged_instance, many=True, context={"view": self, "request": request})
+        return pag.get_paginated_response([response_code.SUCCESS_GET_COMMENT_LIST, ser.data])
+
+    @action(["GET"], False)
+    def message(self, request):
+        data = {
+            "dynamic": request.user.dynamic_me.all().filter(is_active=True, is_viewed=False).count(),
+            "at": request.user.at_me.all().filter(is_active=True, is_viewed=False).count(),
+            "private": request.user.private_me.all().filter(is_active=True, is_viewed=False).count(),
+            "system": request.user.system_me.all().filter(is_active=True, is_viewed=False).count(),
+            "like": request.user.like_me.all().filter(is_active=True, is_viewed=False).count(),
+            "reply": request.user.reply_me.all().filter(is_active=True, is_viewed=False).count(),
+        }
+        return APIResponse(response_code.SUCCESS_GET_MESSAGE_SUM, "成功获取消息", data)
+
 
 class OtherUserView(ViewSet):
     authentication_classes = [UserInfoAuthentication]
@@ -147,7 +176,7 @@ class FollowView(ViewSet):
         instance = User.objects.get(id=pk).my_follow.all().filter(
             followed__username__icontains=name,
         ).exclude(
-            followed__in=request.user.black_list
+            followed__in=request.user.my_black_set
         ).order_by(
             "-create_time"
         )
@@ -162,7 +191,7 @@ class FollowView(ViewSet):
         instance = User.objects.get(id=pk).follow_me.all().filter(
             follower__username__icontains=name,
         ).exclude(
-            follower__in=request.user.black_list
+            follower__in=request.user.my_black_set
         ).order_by(
             "-create_time"
         )
@@ -207,7 +236,7 @@ class BlackListView(APIModelViewSet):
         instance = request.user.my_black.all().filter(blacked__username__icontains=name).order_by("-create_time")
         pag = Pag()
         paged_instance = pag.paginate_queryset(instance, request, view=self)
-        ser = BlackListSerializer(paged_instance, many=True, context={"view": self})
+        ser = BlackListSerializer(paged_instance, many=True, context={"view": self, "request": request})
         return pag.get_paginated_response([response_code.SUCCESS_GET_BLACKED, ser.data])
 
     def create(self, request, *args, **kwargs):

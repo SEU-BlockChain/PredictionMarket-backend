@@ -32,45 +32,49 @@ class APIModelViewSet(ModelViewSet):
         if self.action in self.exclude:
             raise MethodNotAllowed(self.action)
 
+    def before_create(self, request, *args, **kwargs):
+        pass
+
     def create(self, request: Request, *args, **kwargs):
         self.is_exclude()
 
-        if before := getattr(self, f"before_{self.action}", None):
-            if response := before(request, *args, **kwargs):
-                return response
+        self.before_create(request, *args, **kwargs)
 
         serializer = self.get_serializer(data=request.data, args=args, kwargs=kwargs)
         serializer.is_valid(True)
         instance = serializer.save()
 
-        if after := getattr(self, f"after_{self.action}", None):
-            if response := after(instance, request, *args, **kwargs):
-                return response
+        self.after_create(instance, request, *args, **kwargs)
 
         return APIResponse(self.code["create"], "成功添加数据", serializer.data)
+
+    def after_create(self, instance, request, *args, **kwargs):
+        pass
+
+    def before_retrieve(self, request, *args, **kwargs):
+        pass
 
     def retrieve(self, request, *args, **kwargs):
         self.is_exclude()
 
-        if before := getattr(self, f"before_{self.action}", None):
-            if response := before(request, *args, **kwargs):
-                return response
+        self.before_retrieve(request, *args, **kwargs)
 
         instance = self.get_object()
         serializer = self.get_serializer(instance, args=args, kwargs=kwargs)
 
-        if after := getattr(self, f"after_{self.action}", None):
-            if response := after(instance, request, *args, **kwargs):
-                return response
-
+        self.after_retrieve(instance, request, *args, **kwargs)
         return APIResponse(self.code["retrieve"], "成功获取单条数据", serializer.data)
+
+    def after_retrieve(self, instance, request, *args, **kwargs):
+        pass
+
+    def before_update(self, request, *args, **kwargs):
+        pass
 
     def update(self, request, *args, **kwargs):
         self.is_exclude()
 
-        if before := getattr(self, f"before_{self.action}", None):
-            if response := before(request, *args, **kwargs):
-                return response
+        self.before_update(request, *args, **kwargs)
 
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
@@ -82,49 +86,56 @@ class APIModelViewSet(ModelViewSet):
 
         instance = serializer.save()
 
-        if after := getattr(self, f"after_{self.action}", None):
-            if response := after(instance, request, *args, **kwargs):
-                return response
+        self.after_update(instance, request, *args, **kwargs)
 
         return APIResponse(self.code["update"], "已更新", serializer.data)
+
+    def after_update(self, instance, request, *args, **kwargs):
+        pass
+
+    def before_list(self, request, *args, **kwargs):
+        pass
 
     def list(self, request, *args, **kwargs):
         self.is_exclude()
 
-        if before := getattr(self, f"before_{self.action}", None):
-            if response := before(request, *args, **kwargs):
-                return response
+        self.before_list(request, *args, **kwargs)
 
         queryset = self.filter_queryset(self.get_queryset())
 
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True, args=args, kwargs=kwargs)
+            self.after_list(queryset, request, *args, **kwargs)
+
             return self.get_paginated_response((self.code["list"], serializer.data))
 
-        if after := getattr(self, f"after_{self.action}", None):
-            if response := after(queryset, request, *args, **kwargs):
-                return response
+        self.after_list(queryset, request, *args, **kwargs)
 
         serializer = self.get_serializer(queryset, many=True, args=args, kwargs=kwargs)
         return APIResponse(self.code["list"], "成功获取此页数据", serializer.data)
 
+    def after_list(self, queryset, request, *args, **kwargs):
+        pass
+
+    def before_destroy(self, request, *args, **kwargs):
+        pass
+
     def destroy(self, request, *args, **kwargs):
         self.is_exclude()
 
-        if before := getattr(self, f"before_{self.action}", None):
-            if response := before(request, *args, **kwargs):
-                return response
+        self.before_destroy(request, *args, **kwargs)
 
         instance = self.get_object()
         instance.is_active = False
         instance.save()
 
-        if after := getattr(self, f"after_{self.action}", None):
-            if response := after(instance, request, *args, **kwargs):
-                return response
+        self.after_destroy(instance, request, *args, **kwargs)
 
         return APIResponse(self.code["destroy"], "成功删除数据")
+
+    def after_destroy(self, instance, request, *args, **kwargs):
+        pass
 
     def get_serializer(self, *args, **kwargs):
         _args = kwargs.pop("args", None)

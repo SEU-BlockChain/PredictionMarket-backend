@@ -3,9 +3,6 @@ from django.db import models
 from message.models import MessageSetting
 
 
-
-
-
 class User(AbstractUser):
     description = models.CharField(max_length=105, null=True, default=None, verbose_name="简介")
     phone = models.CharField(max_length=11, null=True, default=None, verbose_name="手机号")
@@ -16,7 +13,7 @@ class User(AbstractUser):
     attention_num = models.IntegerField(default=0, verbose_name="关注数")
     up_num = models.IntegerField(default=0, verbose_name="获赞数")
 
-    message_settings = models.OneToOneField(
+    message_setting = models.OneToOneField(
         to="message.MessageSetting",
         on_delete=models.DO_NOTHING,
         verbose_name="私信设置",
@@ -43,7 +40,10 @@ class User(AbstractUser):
     )
 
     def __init__(self, *args, **kwargs):
-        self._black_list = None
+        self._my_black_set = None
+        self._black_me_set = None
+        self._my_follow_set = None
+        self._follow_me_set = None
         super().__init__(*args, **kwargs)
 
     @classmethod
@@ -55,13 +55,50 @@ class User(AbstractUser):
         return cls.objects.my_black.filter(blacked=user).exists()
 
     @property
-    def black_list(self):
-        if self._black_list is None:
+    def my_black_set(self):
+        if self._my_black_set is None:
             if self.is_anonymous:
-                self._black_list = []
+                self._my_black_set = set()
             else:
-                self._black_list = self.my_black.values_list('blacked').first() or []
-        return self._black_list
+                self._my_black_set = set(map(lambda x: x[0], self.my_black.values_list('blacked'))) or set()
+        return self._my_black_set
+
+    @property
+    def black_me_set(self):
+        if self._black_me_set is None:
+            if self.is_anonymous:
+                self._black_me_set = set()
+            else:
+                self._black_me_set = set(map(lambda x: x[0], self.black_me.values_list('blacker'))) or set()
+        return self._black_me_set
+
+    @property
+    def my_follow_set(self):
+        if self._my_follow_set is None:
+            if self.is_anonymous:
+                self._my_follow_set = set()
+            else:
+                self._my_follow_set = set(map(lambda x: x[0], self.my_follow.values_list('followed'))) or set()
+        return self._my_follow_set
+
+    @property
+    def follow_me_set(self):
+        if self._follow_me_set is None:
+            if self.is_anonymous:
+                self._follow_me_set = set()
+            else:
+                self._follow_me_set = set(map(lambda x: x[0], self.follow_me.values_list('follower'))) or set()
+        return self._follow_me_set
+
+    def is_viewed(self, sender, category):
+        setting = getattr(self.message_setting, category)
+        if setting == MessageSetting.IGNORE:
+            return True
+
+        if setting == MessageSetting.FOLLOWED:
+            return sender.id not in self.my_follow_set - self.my_black_set
+
+        return False
 
 
 class Metal(models.Model):

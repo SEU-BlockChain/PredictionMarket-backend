@@ -7,7 +7,11 @@ if __name__ == '__main__':
 
     django.setup()
 
-    from user import models
+    from bbs.models import Article
+    from user.models import User, Follow
+    from message.models import Dynamic, MessageSetting
+    from django.db.models import F, Q
+    from django.db.models.query import QuerySet
 
-    a = models.User.objects.get(id=1).my_black.values_list('blacked').first()
-    print(a)
+    u = User.objects.get(id=2)
+    print(u.dynamic_me.all().filter(is_active=False).update(is_active=True))

@@ -1,5 +1,8 @@
 from rest_framework.decorators import action
+from django.db.models import Q
+
 from .serializers import *
+from message.models import Dynamic, MessageSetting, Like, Reply, Origin
 from backend.libs.constants import response_code
 from backend.libs.wraps.views import APIModelViewSet
 from backend.libs.wraps.response import APIResponse
@@ -29,6 +32,7 @@ class ArticleView(APIModelViewSet):
     serializer_class = ArticleSerializer
     filter_fields = [
         "author",
+        "author__id",
         "author__username",
         "category_id"
     ]
@@ -41,6 +45,7 @@ class ArticleView(APIModelViewSet):
     ]
     search_fields = [
         "title",
+        "author__id",
         "author__username",
         "category__category",
         "description",
@@ -75,6 +80,31 @@ class ArticleView(APIModelViewSet):
             instance.save()
             View.objects.create(article=instance, name_id=request.user.id)
 
+    def after_create(self, instance, request, *args, **kwargs):
+        a = request.user.follow_me.exclude(
+            follower__message_setting__dynamic=0,
+        ).filter(
+            ~Q(follower_id__in=request.user.black_me_set)
+        ).all()
+        create_data = []
+        for follow_record in a:
+            if follow_record.follower.message_setting.dynamic == MessageSetting.FORBID:
+                continue
+            create_data.append(Dynamic(
+                sender=request.user,
+                receiver=follow_record.follower,
+                origin=Dynamic.BBS_ARTICLE,
+                bbs_article=instance,
+                is_viewed=follow_record.follower.message_setting.dynamic == MessageSetting.IGNORE,
+            ))
+
+        Dynamic.objects.bulk_create(create_data)
+
+    def after_destroy(self, instance, request, *args, **kwargs):
+        Dynamic.handle_delete(instance, Origin.BBS_ARTICLE)
+        Like.handle_delete(instance, Origin.BBS_ARTICLE)
+        Reply.handle_delete(instance, Origin.BBS_ARTICLE)
+
     @action(["GET"], True)
     def raw(self, request, pk):
         query_set = self.get_queryset()
@@ -87,9 +117,11 @@ class ArticleView(APIModelViewSet):
 
     @action(["POST"], True)
     def vote(self, request, pk):
-        if not Article.objects.filter(id=pk, is_active=True).exists():
+        article = Article.objects.filter(id=pk, is_active=True)
+        if not article:
             return APIResponse(response_code.INEXISTENT_ARTICLE, "文章不存在")
 
+        article = article.first()
         data = request.data.copy()
         data["user_id"] = request.user.id
         data["article_id"] = pk
@@ -97,6 +129,23 @@ class ArticleView(APIModelViewSet):
         ser = VoteArticleSerializer(data=data)
         ser.is_valid(True)
         ser.save()
+
+        receiver = article.author
+        sender = request.user
+        if receiver != sender and receiver.message_setting.like != MessageSetting.FORBID:
+            like = Like.objects.filter(bbs_article=article, sender=sender)
+            if request.data.get("is_up") and not like:
+                Like.objects.create(
+                    origin=Like.BBS_ARTICLE,
+                    bbs_article_id=pk,
+                    sender=sender,
+                    receiver=receiver,
+                    is_viewed=receiver.is_viewed(request.user, "like")
+                )
+            else:
+                like = like.first()
+                like.is_active = request.data.get("is_up") and not like.is_active
+                like.save()
 
         return APIResponse(response_code.SUCCESS_VOTE_ARTICLE, "评价成功")
 
@@ -132,14 +181,30 @@ class CommentView(APIModelViewSet):
         instance.article.comment_num += 1
         instance.article.save()
 
-    def after_destory(self, instance: Comment, request, *args, **kwargs):
-        instance.article.comment_num -= 1
+        receiver = instance.article.author
+        sender = request.user
+        if receiver != sender and receiver.message_setting.reply != MessageSetting.FORBID:
+            Reply.objects.create(
+                origin=Reply.BBS_COMMENT,
+                bbs_comment=instance,
+                sender=sender,
+                receiver=receiver,
+                is_viewed=receiver.is_viewed(sender, "reply")
+            )
+
+    def after_destroy(self, instance: Comment, request, *args, **kwargs):
+        instance.article.comment_num -= 1 + instance.comment_num
         instance.article.save()
+        Dynamic.handle_delete(instance, Origin.BBS_COMMENT)
+        Like.handle_delete(instance, Origin.BBS_COMMENT)
+        Reply.handle_delete(instance, Origin.BBS_COMMENT)
 
     @action(["POST"], True)
     def vote(self, request, article_id, pk):
-        if not Comment.objects.filter(article_id=article_id, article__is_active=True, id=pk, is_active=True).exists():
+        comment = Comment.objects.filter(article_id=article_id, article__is_active=True, id=pk, is_active=True)
+        if not comment:
             return APIResponse(response_code.INEXISTENT_COMMENTS, "评论不存在")
+        comment = comment.first()
 
         data = request.data.copy()
         data["user_id"] = request.user.id
@@ -147,6 +212,23 @@ class CommentView(APIModelViewSet):
         ser = VoteCommentSerializer(data=data)
         ser.is_valid(True)
         ser.save()
+
+        receiver = comment.author
+        sender = request.user
+        if receiver != sender and receiver.message_setting.like != MessageSetting.FORBID:
+            like = Like.objects.filter(origin=Like.BBS_COMMENT, bbs_comment=comment, sender=sender)
+            if request.data.get("is_up") and not like:
+                Like.objects.create(
+                    origin=Like.BBS_COMMENT,
+                    bbs_comment_id=pk,
+                    sender=sender,
+                    receiver=receiver,
+                    is_viewed=receiver.is_viewed(request.user, "like")
+                )
+            else:
+                like = like.first()
+                like.is_active = request.data.get("is_up") and not like.is_active
+                like.save()
 
         return APIResponse(response_code.SUCCESS_VOTE_COMMENT, "评价成功")
 
@@ -183,8 +265,26 @@ class ChildrenCommentView(APIModelViewSet):
         instance.parent.comment_num += 1
         instance.parent.save()
 
-    def after_destory(self, instance: Comment, request, *args, **kwargs):
+        if instance.target:
+            receiver = instance.target.author
+        else:
+            receiver = instance.parent.author
+        sender = request.user
+        if receiver != sender and receiver.message_setting.reply != MessageSetting.FORBID:
+            Reply.objects.create(
+                origin=Reply.BBS_COMMENT,
+                bbs_comment=instance,
+                sender=sender,
+                receiver=receiver,
+                is_viewed=receiver.is_viewed(sender, "reply")
+            )
+
+    def after_destroy(self, instance: Comment, request, *args, **kwargs):
         instance.article.comment_num -= 1
         instance.article.save()
         instance.parent.comment_num -= 1
-        instance.article.save()
+        instance.parent.save()
+
+        Dynamic.handle_delete(instance, Origin.BBS_COMMENT)
+        Like.handle_delete(instance, Origin.BBS_COMMENT)
+        Reply.handle_delete(instance, Origin.BBS_COMMENT)

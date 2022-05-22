@@ -5,6 +5,7 @@ from django.core.cache import cache
 from django.db.models import Q
 
 from .models import *
+from message.models import MessageSetting
 from backend.libs.wraps.serializers import EmptySerializer, OtherUserSerializer, serializers
 from backend.libs.constants import re_patterns, response_code
 from backend.libs.wraps.errors import SerializerError
@@ -45,6 +46,7 @@ class UsernameRegisterSerializer(EmptySerializer):
         return attrs
 
     def create(self, validated_data):
+        validated_data["message_setting"] = MessageSetting.objects.create()
         return User.objects.create_user(**validated_data)
 
 
