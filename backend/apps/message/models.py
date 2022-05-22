@@ -8,7 +8,7 @@ UserField = partial(models.ForeignKey, to="user.User", on_delete=models.DO_NOTHI
 
 class Origin:
     BBS_ARTICLE = 0
-    BBS_COMMENT = 0
+    BBS_COMMENT = 1
 
 
 class AbstractMessage(APIModel):
@@ -76,6 +76,10 @@ class Reply(AbstractMessage):
 class At(AbstractMessage, AbstractOrigin):
     sender = UserField(verbose_name="发信人", related_name="my_at")
     receiver = UserField(verbose_name="收信人", related_name="at_me")
+
+    @classmethod
+    def handle_delete(cls, instance, category):
+        pass
 
 
 class Like(AbstractMessage, AbstractOrigin):

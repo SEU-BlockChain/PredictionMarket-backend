@@ -7,8 +7,13 @@ from .errors import *
 from backend.libs.constants import response_code
 from qcloud_cos.cos_exception import CosException
 
+DEBUG = False
+
 
 def common_exception_handler(exc, context):
+    if DEBUG:
+        return
+
     log.error("%s : %s" % (context["view"].__class__.__name__, str(exc)))
 
     print("Catch:\t", type(exc))
@@ -39,5 +44,3 @@ def common_exception_handler(exc, context):
             return APIResponse(response_code.NOT_LOGIN, ret.data.get("detail", "未登录"))
 
         return APIResponse(0, "错误", ret.data)
-
-

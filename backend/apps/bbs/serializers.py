@@ -89,6 +89,7 @@ class ArticleSerializer(APIModelSerializer):
             "up_num",
             "down_num",
             "comment_num",
+            "comment_time",
             "create_time",
             "update_time",
             "is_up"

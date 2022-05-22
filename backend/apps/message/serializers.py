@@ -7,6 +7,12 @@ from backend.libs.wraps.errors import SerializerError
 from backend.libs.constants import response_code
 
 
+class MessageSettingSerializer(APIModelSerializer):
+    class Meta:
+        model = MessageSetting
+        exclude = ["id"]
+
+
 class AuthorSerializer(APIModelSerializer):
     class Meta:
         model = User
@@ -182,4 +188,69 @@ class ReplySerializer(APIModelSerializer):
             "origin",
             "content",
             "is_viewed"
+        ]
+
+
+class LikeArticleSerializer(APIModelSerializer):
+    class Meta:
+        model = Article
+        fields = [
+            "id",
+            "title"
+        ]
+
+
+class LikeCommentSerializer(APIModelSerializer):
+    article = LikeArticleSerializer()
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "content",
+            "article"
+        ]
+
+
+class LikeAuthorSerializer(APIModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "username",
+            "icon"
+        ]
+
+
+class LikeSerializer(APIModelSerializer):
+    is_viewed = serializers.SerializerMethodField()
+    content = serializers.SerializerMethodField()
+    sender = LikeAuthorSerializer()
+    num = serializers.SerializerMethodField()
+
+    def get_is_viewed(self, instance):
+        return instance.viewed
+
+    def get_content(self, instance: Like):
+        if instance.origin == Like.BBS_ARTICLE:
+            content = LikeArticleSerializer(instance.bbs_article).data
+        elif instance.origin == Like.BBS_COMMENT:
+            content = LikeCommentSerializer(instance.bbs_comment).data
+        else:
+            raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
+        return content
+
+    def get_num(self, instance):
+        return instance.num
+
+    class Meta:
+        model = Like
+        fields = [
+            "id",
+            "origin",
+            "content",
+            "sender",
+            "is_viewed",
+            "num",
+            "time"
         ]

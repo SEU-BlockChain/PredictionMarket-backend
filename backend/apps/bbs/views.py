@@ -2,7 +2,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 
 from .serializers import *
-from message.models import Dynamic, MessageSetting, Like, Reply, Origin
+from message.models import Dynamic, MessageSetting, Like, Reply, Origin, At
 from backend.libs.constants import response_code
 from backend.libs.wraps.views import APIModelViewSet
 from backend.libs.wraps.response import APIResponse
@@ -41,7 +41,8 @@ class ArticleView(APIModelViewSet):
         "create_time",
         "view_num",
         "up_num",
-        "comment_num"
+        "comment_num",
+        "comment_time",
     ]
     search_fields = [
         "title",
@@ -80,6 +81,10 @@ class ArticleView(APIModelViewSet):
             instance.save()
             View.objects.create(article=instance, name_id=request.user.id)
 
+    def before_create(self, request, *args, **kwargs):
+        if not request.user.is_superuser and request.data.get("category_id") == 1:
+            return APIResponse(response_code.NO_PERMISSION, "无权限")
+
     def after_create(self, instance, request, *args, **kwargs):
         a = request.user.follow_me.exclude(
             follower__message_setting__dynamic=0,
@@ -88,8 +93,6 @@ class ArticleView(APIModelViewSet):
         ).all()
         create_data = []
         for follow_record in a:
-            if follow_record.follower.message_setting.dynamic == MessageSetting.FORBID:
-                continue
             create_data.append(Dynamic(
                 sender=request.user,
                 receiver=follow_record.follower,
@@ -104,6 +107,7 @@ class ArticleView(APIModelViewSet):
         Dynamic.handle_delete(instance, Origin.BBS_ARTICLE)
         Like.handle_delete(instance, Origin.BBS_ARTICLE)
         Reply.handle_delete(instance, Origin.BBS_ARTICLE)
+        At.handle_delete(instance, Origin.BBS_COMMENT)
 
     @action(["GET"], True)
     def raw(self, request, pk):
@@ -144,6 +148,7 @@ class ArticleView(APIModelViewSet):
                 )
             else:
                 like = like.first()
+                like.time = datetime.datetime.now()
                 like.is_active = request.data.get("is_up") and not like.is_active
                 like.save()
 
@@ -179,6 +184,7 @@ class CommentView(APIModelViewSet):
 
     def after_create(self, instance: Comment, request, *args, **kwargs):
         instance.article.comment_num += 1
+        instance.article.comment_time = datetime.datetime.now()
         instance.article.save()
 
         receiver = instance.article.author
@@ -195,9 +201,11 @@ class CommentView(APIModelViewSet):
     def after_destroy(self, instance: Comment, request, *args, **kwargs):
         instance.article.comment_num -= 1 + instance.comment_num
         instance.article.save()
+
         Dynamic.handle_delete(instance, Origin.BBS_COMMENT)
         Like.handle_delete(instance, Origin.BBS_COMMENT)
         Reply.handle_delete(instance, Origin.BBS_COMMENT)
+        At.handle_delete(instance, Origin.BBS_COMMENT)
 
     @action(["POST"], True)
     def vote(self, request, article_id, pk):
@@ -227,6 +235,7 @@ class CommentView(APIModelViewSet):
                 )
             else:
                 like = like.first()
+                like.time = datetime.datetime.now()
                 like.is_active = request.data.get("is_up") and not like.is_active
                 like.save()
 
@@ -261,6 +270,7 @@ class ChildrenCommentView(APIModelViewSet):
 
     def after_create(self, instance: Comment, request, *args, **kwargs):
         instance.article.comment_num += 1
+        instance.article.comment_time = datetime.datetime.now()
         instance.article.save()
         instance.parent.comment_num += 1
         instance.parent.save()
@@ -288,3 +298,4 @@ class ChildrenCommentView(APIModelViewSet):
         Dynamic.handle_delete(instance, Origin.BBS_COMMENT)
         Like.handle_delete(instance, Origin.BBS_COMMENT)
         Reply.handle_delete(instance, Origin.BBS_COMMENT)
+        At.handle_delete(instance, Origin.BBS_COMMENT)

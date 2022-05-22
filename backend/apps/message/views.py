@@ -1,7 +1,28 @@
+from rest_framework.viewsets import ViewSet
+from rest_framework.decorators import action
+
 from .serializers import *
 from backend.libs.wraps.authenticators import CommonJwtAuthentication
 from backend.libs.wraps.views import APIModelViewSet
+from backend.libs.wraps.response import APIResponse
 from backend.libs.constants import response_code
+
+
+class MessageSettingView(ViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+
+    @action(["GET", "POST"], False)
+    def message_setting(self, request):
+        if request.method == "GET":
+            return APIResponse(
+                response_code.SUCCESS_GET_MESSAGE_SETTING,
+                "成功获取消息设置",
+                MessageSettingSerializer(self.request.user.message_setting).data)
+        else:
+            ser = MessageSettingSerializer(request.user.message_setting, request.data, partial=True)
+            ser.is_valid(True)
+            ser.save()
+            return APIResponse(response_code.SUCCESS_EDIT_MESSAGE_SETTING)
 
 
 class DynamicView(APIModelViewSet):
@@ -49,3 +70,32 @@ class ReplyView(APIModelViewSet):
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.reply_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)
+
+
+class LikeView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    serializer_class = LikeSerializer
+    code = {
+        "list": response_code.SUCCESS_GET_LIKE_LIST,
+    }
+    exclude = ["create", "retrieve", "update", "destroy"]
+
+    def get_queryset(self):
+        return self.request.user.like_me.raw(
+            """
+            select 
+                *,count(*) num,min(is_viewed) viewed
+            from 
+                message_like 
+            where 
+                receiver_id=1 
+            group by 
+                bbs_article_id,bbs_comment_id
+            order by 
+                is_viewed,
+                time desc 
+            """
+        )
+
+    def after_list(self, queryset, request, *args, **kwargs):
+        request.user.like_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)

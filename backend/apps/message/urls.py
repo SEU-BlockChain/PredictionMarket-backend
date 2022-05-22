@@ -6,6 +6,8 @@ from .views import *
 router = SimpleRouter()
 router.register("dynamic", DynamicView, "")
 router.register("reply", ReplyView, "")
+router.register("like", LikeView, "")
+router.register("", MessageSettingView, "")
 
 urlpatterns = [
     path("", include(router.urls))
