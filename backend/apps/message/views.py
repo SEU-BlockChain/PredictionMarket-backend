@@ -20,7 +20,8 @@ class MessageSettingView(ViewSet):
                 "成功获取消息设置",
                 MessageSettingSerializer(self.request.user.message_setting).data)
         else:
-            ser = MessageSettingSerializer(request.user.message_setting, request.data, partial=True)
+            print(request.data)
+            ser = MessageSettingSerializer(request.user.message_setting, request.data)
             ser.is_valid(True)
             ser.save()
             return APIResponse(response_code.SUCCESS_EDIT_MESSAGE_SETTING)
@@ -82,7 +83,7 @@ class LikeView(APIModelViewSet):
     exclude = ["create", "retrieve", "update", "destroy"]
 
     def get_queryset(self):
-        return self.request.user.like_me.raw(like_sql)
+        return Like.objects.raw(like_sql % self.request.user.id)
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.like_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)

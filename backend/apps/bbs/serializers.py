@@ -164,15 +164,15 @@ class ArticleSerializer(APIModelSerializer):
 
     def create(self, validated_data):
         validated_data["author"] = self.context["request"].user
-        validated_data["description"] = self.get_description(validated_data["content"])
+        validated_data["description"] = self._get_description(validated_data["content"])
         return super().create(validated_data)
 
     def update(self, instance: Article, validated_data):
-        validated_data["description"] = self.get_description(validated_data["content"])
+        validated_data["description"] = self._get_description(validated_data["content"])
         validated_data["update_time"] = datetime.datetime.now()
         return super().update(instance, validated_data)
 
-    def get_description(self, content):
+    def _get_description(self, content):
         text = HTML(content).xpath("string(.)")
         if len(text) <= 64:
             html_text = f'<div>{text}</div>'
@@ -243,7 +243,22 @@ class CommentSerializer(APIModelSerializer):
     def create(self, validated_data):
         validated_data["author"] = self.context["request"].user
         validated_data["article_id"] = self.context["kwargs"].get("article_id")
+        validated_data["description"] = self._get_description(validated_data["content"])
         return super().create(validated_data)
+
+    def _get_description(self, content):
+        text = HTML(content).xpath("string(.)")
+        if len(text) <= 40:
+            html_text = f'<span>{text}</span>'
+        else:
+            html_text = f'<span>{text[:40]}...</span>'
+
+        img_urls = re.findall('<img src="(.*?)" .*?/>', content)
+
+        if not img_urls:
+            return html_text
+
+        return html_text + "<span>[图片]</span>"
 
 
 class SimpleArticleSerializer(APIModelSerializer):
@@ -322,9 +337,11 @@ class ChildrenCommentSerializer(APIModelSerializer):
 
     def create(self, validated_data):
         content = validated_data["content"]
-        if validated_data.get("target_id"):
-            validated_data["content"] = self._add_mention(content, validated_data)
+        validated_data["description"] = self._get_description(validated_data["content"])
 
+        if validated_data.get("target_id"):
+            validated_data["content"], prefix = self._add_mention(content, validated_data)
+            validated_data["description"] = prefix + validated_data["description"]
         validated_data["author"] = self.context["request"].user
         return super().create(validated_data)
 
@@ -345,7 +362,21 @@ class ChildrenCommentSerializer(APIModelSerializer):
             f'回复&nbsp;<span style="color: rgb(54, 88, 226);">@{comment.author.username}:</span>',
             content[3:]
         ])
-        return content
+        return content, f'回复&nbsp;<span style="color: rgb(54, 88, 226);">@{comment.author.username}:</span>'
+
+    def _get_description(self, content):
+        text = HTML(content).xpath("string(.)")
+        if len(text) <= 40:
+            html_text = f'<span>{text}</span>'
+        else:
+            html_text = f'<span>{text[:40]}...</span>'
+
+        img_urls = re.findall('<img src="(.*?)" .*?/>', content)
+
+        if not img_urls:
+            return html_text
+
+        return html_text + "<span>[图片]</span>"
 
 
 class VoteArticleSerializer(EmptySerializer):

@@ -164,7 +164,7 @@ class ReplyCommentSerializer(APIModelSerializer):
             "author",
             "article",
             "comment_time",
-            "content",
+            "description",
             "parent",
             "target",
             "is_up"
@@ -207,7 +207,7 @@ class LikeCommentSerializer(APIModelSerializer):
         model = Comment
         fields = [
             "id",
-            "content",
+            "description",
             "article"
         ]
 
@@ -226,7 +226,9 @@ class LikeSerializer(APIModelSerializer):
     is_viewed = serializers.SerializerMethodField()
     content = serializers.SerializerMethodField()
     sender = LikeAuthorSerializer()
-    num = serializers.SerializerMethodField()
+    total = serializers.SerializerMethodField()
+    new = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
 
     def get_is_viewed(self, instance):
         return instance.viewed
@@ -240,8 +242,14 @@ class LikeSerializer(APIModelSerializer):
             raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
         return content
 
-    def get_num(self, instance):
-        return instance.num
+    def get_total(self, instance):
+        return instance.total
+
+    def get_new(self, instance):
+        return int(instance.new)
+
+    def get_time(self, instance):
+        return instance.last_time
 
     class Meta:
         model = Like
@@ -251,6 +259,7 @@ class LikeSerializer(APIModelSerializer):
             "content",
             "sender",
             "is_viewed",
-            "num",
+            "total",
+            "new",
             "time"
         ]

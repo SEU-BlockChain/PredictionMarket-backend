@@ -17,7 +17,7 @@ if __name__ == '__main__':
     query = a.like_me.raw(
         """
         select 
-            *,count(*) num 
+            *,count(*) num,min(is_viewed) viewed
         from 
             message_like 
         where 
@@ -31,4 +31,4 @@ if __name__ == '__main__':
     )
 
     for i in query:
-        print(i)
+        print(i.viewed, i.id)

@@ -33,7 +33,8 @@ class Article(APIModel):
 class Comment(APIModel):
     author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="评论作者")
     article = models.ForeignKey(to="Article", on_delete=models.DO_NOTHING, verbose_name="对应文章")
-    content = models.CharField(max_length=256, verbose_name="评论内容")
+    content = models.TextField(verbose_name="评论内容")
+    description = models.TextField(verbose_name="文章摘要")
     up_num = models.IntegerField(default=0, verbose_name="点赞数")
     down_num = models.IntegerField(default=0, verbose_name="点踩数")
     comment_num = models.IntegerField(default=0, verbose_name="评论数")
