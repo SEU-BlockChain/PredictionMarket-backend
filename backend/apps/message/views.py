@@ -6,6 +6,7 @@ from backend.libs.wraps.authenticators import CommonJwtAuthentication
 from backend.libs.wraps.views import APIModelViewSet
 from backend.libs.wraps.response import APIResponse
 from backend.libs.constants import response_code
+from backend.libs.scripts.sql import like_sql
 
 
 class MessageSettingView(ViewSet):
@@ -33,7 +34,7 @@ class DynamicView(APIModelViewSet):
         "list": response_code.SUCCESS_GET_DYNAMIC_LIST,
         "destroy": response_code.SUCCESS_DELETE_DYNAMIC
     }
-    exclude = ["create", "retrieve", "update"]
+    exclude = ["create", "retrieve", "update", "retrieve"]
     search_fields = [
         "sender__id",
         "sender__username",
@@ -81,21 +82,7 @@ class LikeView(APIModelViewSet):
     exclude = ["create", "retrieve", "update", "destroy"]
 
     def get_queryset(self):
-        return self.request.user.like_me.raw(
-            """
-            select 
-                *,count(*) num,min(is_viewed) viewed
-            from 
-                message_like 
-            where 
-                receiver_id=1 
-            group by 
-                bbs_article_id,bbs_comment_id
-            order by 
-                is_viewed,
-                time desc 
-            """
-        )
+        return self.request.user.like_me.raw(like_sql)
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.like_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)
