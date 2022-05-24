@@ -144,7 +144,7 @@ class ArticleView(APIModelViewSet):
                     bbs_article_id=pk,
                     sender=sender,
                     receiver=receiver,
-                    is_viewed=receiver.is_viewed(request.user, "like")
+                    is_viewed=receiver.is_viewed(sender, "like")
                 )
             else:
                 like = like.first()
@@ -231,7 +231,7 @@ class CommentView(APIModelViewSet):
                     bbs_comment_id=pk,
                     sender=sender,
                     receiver=receiver,
-                    is_viewed=receiver.is_viewed(request.user, "like")
+                    is_viewed=receiver.is_viewed(sender, "like")
                 )
             else:
                 like = like.first()

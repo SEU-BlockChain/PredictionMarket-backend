@@ -148,17 +148,19 @@ class UserInfoView(ViewSet):
         return APIResponse(response_code.SUCCESS_GET_MESSAGE_SUM, "成功获取消息", data)
 
 
-class OtherUserView(ViewSet):
+class OtherUserView(APIModelViewSet):
     authentication_classes = [UserInfoAuthentication]
-
-    @action(["GET"], True)
-    def info(self, request, pk):
-        return OtherUserInfoResponse(
-            self,
-            User.objects.get(id=pk),
-            response_code.SUCCESS_GET_USER_INFO,
-            "成功获取用户信息"
-        )
+    queryset = User.objects.all().order_by("id")
+    serializer_class = OtherUserSerializer
+    code = {
+        "retrieve": response_code.SUCCESS_GET_OTHER_USER_INFO,
+        "list": response_code.SUCCESS_GET_OTHER_USER_INFO_LIST
+    }
+    exclude = ["destroy", "update", "create"]
+    search_fields = [
+        "id",
+        "username",
+    ]
 
 
 class FollowView(ViewSet):

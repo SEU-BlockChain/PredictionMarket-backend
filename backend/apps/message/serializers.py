@@ -20,7 +20,6 @@ class AuthorSerializer(APIModelSerializer):
             "id",
             "icon",
             "username",
-            "experience"
         ]
 
 
@@ -262,4 +261,62 @@ class LikeSerializer(APIModelSerializer):
             "total",
             "new",
             "time"
+        ]
+
+
+class AtArticleSerializer(APIModelSerializer):
+    author = AuthorSerializer()
+
+    class Meta:
+        model = Article
+        fields = [
+            "id",
+            "author",
+            "title"
+        ]
+
+
+class AtSimpleArticle(APIModelSerializer):
+    class Meta:
+        model = Article
+        fields = [
+            "id",
+            "title"
+        ]
+
+
+class AtCommentSerializer(APIModelSerializer):
+    author = AuthorSerializer()
+    article = AtSimpleArticle()
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "author",
+            "article",
+            "description"
+        ]
+
+
+class AtSerializer(APIModelSerializer):
+    content = serializers.SerializerMethodField()
+
+    def get_content(self, instance: At):
+        if instance.origin == At.BBS_ARTICLE:
+            content = AtArticleSerializer(instance.bbs_article, context=self.context).data
+        elif instance.origin == At.BBS_COMMENT:
+            content = AtCommentSerializer(instance.bbs_comment, context=self.context).data
+        else:
+            raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
+        return content
+
+    class Meta:
+        model = At
+        fields = [
+            "id",
+            "origin",
+            "content",
+            "time",
+            "is_viewed",
         ]

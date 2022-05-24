@@ -94,3 +94,4 @@ class OtherUserSerializer(serializers.ModelSerializer):
             "followed",
             "follower"
         ]
+

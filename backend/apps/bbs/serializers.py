@@ -1,10 +1,11 @@
 import re
 from datetime import datetime
 
-from lxml.etree import HTML
+from lxml import etree
 from django.db.models import F
 
 from .models import *
+from user.models import User
 from backend.libs.wraps.serializers import EmptySerializer, serializers, APIModelSerializer, OtherUserSerializer
 from backend.libs.wraps.errors import SerializerError
 from backend.libs.constants import response_code
@@ -163,17 +164,19 @@ class ArticleSerializer(APIModelSerializer):
             self.fields.pop(i)
 
     def create(self, validated_data):
+        validated_data["content"] = self._add_mention(validated_data["content"])
         validated_data["author"] = self.context["request"].user
         validated_data["description"] = self._get_description(validated_data["content"])
         return super().create(validated_data)
 
     def update(self, instance: Article, validated_data):
+        validated_data["content"] = self._add_mention(validated_data["content"])
         validated_data["description"] = self._get_description(validated_data["content"])
         validated_data["update_time"] = datetime.datetime.now()
         return super().update(instance, validated_data)
 
     def _get_description(self, content):
-        text = HTML(content).xpath("string(.)")
+        text = etree.HTML(content).xpath("string(.)")
         if len(text) <= 64:
             html_text = f'<div>{text}</div>'
         else:
@@ -187,6 +190,20 @@ class ArticleSerializer(APIModelSerializer):
         img_url = img_urls[0]
         html_image = f'<img src="{img_url}"/>'
         return html_text + html_image
+
+    def _add_mention(self, html):
+        self.context["mention"] = []
+        tree = etree.HTML(html)
+        for i in tree.xpath("//span[@data-w-e-type='mention']"):
+            uid = i.xpath("@data-info")[0]
+            username = i.xpath("text()")[0].replace("@", "")
+            user = User.objects.filter(id=uid, username=username)
+            if user:
+                self.context["mention"].append(user.first())
+                i.set("style", "color: rgb(54, 88, 226);")
+                i.set("uid", uid)
+
+        return etree.tostring(tree).decode("utf-8")[12:-14]
 
 
 class CommentSerializer(APIModelSerializer):
@@ -241,13 +258,14 @@ class CommentSerializer(APIModelSerializer):
         ]
 
     def create(self, validated_data):
+        validated_data["content"] = self._add_mention(validated_data["content"])
         validated_data["author"] = self.context["request"].user
         validated_data["article_id"] = self.context["kwargs"].get("article_id")
         validated_data["description"] = self._get_description(validated_data["content"])
         return super().create(validated_data)
 
     def _get_description(self, content):
-        text = HTML(content).xpath("string(.)")
+        text = etree.HTML(content).xpath("string(.)")
         if len(text) <= 40:
             html_text = f'<span>{text}</span>'
         else:
@@ -259,6 +277,20 @@ class CommentSerializer(APIModelSerializer):
             return html_text
 
         return html_text + "<span>[图片]</span>"
+
+    def _add_mention(self, html):
+        self.context["mention"] = []
+        tree = etree.HTML(html)
+        for i in tree.xpath("//span[@data-w-e-type='mention']"):
+            uid = i.xpath("@data-info")[0]
+            username = i.xpath("text()")[0].replace("@", "")
+            user = User.objects.filter(id=uid, username=username)
+            if user:
+                self.context["mention"].append(user.first())
+                i.set("style", "color: rgb(54, 88, 226);")
+                i.set("uid", uid)
+
+        return etree.tostring(tree).decode("utf-8")[12:-14]
 
 
 class SimpleArticleSerializer(APIModelSerializer):
@@ -336,16 +368,16 @@ class ChildrenCommentSerializer(APIModelSerializer):
         ]
 
     def create(self, validated_data):
-        content = validated_data["content"]
-        validated_data["description"] = self._get_description(validated_data["content"])
-
         if validated_data.get("target_id"):
-            validated_data["content"], prefix = self._add_mention(content, validated_data)
-            validated_data["description"] = prefix + validated_data["description"]
+            validated_data["content"] = self._add_mention_prefix(validated_data["content"], validated_data)
+
+        validated_data["content"] = self._add_mention(validated_data["content"])
+        validated_data["description"] = self._get_description(validated_data["content"])
         validated_data["author"] = self.context["request"].user
+
         return super().create(validated_data)
 
-    def _add_mention(self, content, validated_data):
+    def _add_mention_prefix(self, content, validated_data):
         article_id = validated_data["article_id"]
         parent_id = validated_data["parent_id"]
         target_id = validated_data["target_id"]
@@ -362,10 +394,10 @@ class ChildrenCommentSerializer(APIModelSerializer):
             f'回复&nbsp;<span style="color: rgb(54, 88, 226);">@{comment.author.username}:</span>',
             content[3:]
         ])
-        return content, f'回复&nbsp;<span style="color: rgb(54, 88, 226);">@{comment.author.username}:</span>'
+        return content
 
     def _get_description(self, content):
-        text = HTML(content).xpath("string(.)")
+        text = etree.HTML(content).xpath("string(.)")
         if len(text) <= 40:
             html_text = f'<span>{text}</span>'
         else:
@@ -377,6 +409,20 @@ class ChildrenCommentSerializer(APIModelSerializer):
             return html_text
 
         return html_text + "<span>[图片]</span>"
+
+    def _add_mention(self, html):
+        self.context["mention"] = []
+        tree = etree.HTML(html)
+        for i in tree.xpath("//span[@data-w-e-type='mention']"):
+            uid = i.xpath("@data-info")[0]
+            username = i.xpath("text()")[0].replace("@", "")
+            user = User.objects.filter(id=uid, username=username)
+            if user:
+                self.context["mention"].append(user.first())
+                i.set("style", "color: rgb(54, 88, 226);")
+                i.set("uid", uid)
+
+        return etree.tostring(tree).decode("utf-8")[12:-14]
 
 
 class VoteArticleSerializer(EmptySerializer):

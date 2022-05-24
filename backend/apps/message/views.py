@@ -87,3 +87,24 @@ class LikeView(APIModelViewSet):
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.like_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)
+
+
+class AtView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    serializer_class = AtSerializer
+    queryset = At
+    code = {
+        "list": response_code.SUCCESS_GET_AT_LIST,
+        "destroy": response_code.SUCCESS_DELETE_AT
+    }
+    exclude = ["create", "retrieve", "update"]
+
+    def get_queryset(self):
+        return self.queryset.objects.filter(
+            is_active=True,
+            receiver=self.request.user,
+            sender_id__in=self.request.user.my_follow_set - self.request.user.my_black_set
+        ).order_by("-id")
+
+    def after_list(self, queryset, request, *args, **kwargs):
+        request.user.at_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)

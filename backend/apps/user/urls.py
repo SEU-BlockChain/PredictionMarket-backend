@@ -6,7 +6,7 @@ from .views import *
 router = SimpleRouter()
 router.register("sign", SignView, "sign")
 router.register("self", UserInfoView, "user_info")
-router.register("", OtherUserView, "")
+router.register("info", OtherUserView, "")
 router.register("follow", FollowView, "follow")
 router.register("black_list", BlackListView, "black_list")
 

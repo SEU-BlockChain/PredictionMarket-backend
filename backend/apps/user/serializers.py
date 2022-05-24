@@ -6,7 +6,7 @@ from django.db.models import Q
 
 from .models import *
 from message.models import MessageSetting
-from backend.libs.wraps.serializers import EmptySerializer, OtherUserSerializer, serializers
+from backend.libs.wraps.serializers import EmptySerializer, OtherUserSerializer, serializers, APIModelSerializer
 from backend.libs.constants import re_patterns, response_code
 from backend.libs.wraps.errors import SerializerError
 

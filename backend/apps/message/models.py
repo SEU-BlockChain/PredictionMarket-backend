@@ -79,7 +79,30 @@ class At(AbstractMessage, AbstractOrigin):
 
     @classmethod
     def handle_delete(cls, instance, category):
-        pass
+        if category == Origin.BBS_ARTICLE:
+            queryset = cls.objects.filter(
+                origin=cls.BBS_COMMENT,
+                bbs_comment__article=instance,
+                is_active=True,
+            ).all()
+        elif category == Origin.BBS_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=cls.BBS_COMMENT,
+                    bbs_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=cls.BBS_COMMENT,
+                    bbs_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        else:
+            return
+
+        for i in queryset:
+            i.is_active = False
+        cls.objects.bulk_update(queryset, ["is_active"])
 
 
 class Like(AbstractMessage, AbstractOrigin):

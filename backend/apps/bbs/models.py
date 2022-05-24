@@ -1,5 +1,7 @@
 from backend.libs.wraps.models import APIModel, models
 import datetime
+from message.models import At, MessageSetting
+from user.models import User
 
 
 class Draft(APIModel):
@@ -29,6 +31,22 @@ class Article(APIModel):
     comment_time = models.DateTimeField(default=datetime.datetime.now, verbose_name="最后回复时间")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
 
+    def after_create(self, validated_data, serializer):
+        mention = serializer.context["mention"]
+        sender: User = serializer.context["request"].user
+
+        create_data = []
+        for receiver in mention:
+            if receiver != sender and receiver.message_setting.at != MessageSetting.FORBID and receiver.id not in sender.black_me_set:
+                create_data.append(At(
+                    sender=sender,
+                    receiver=receiver,
+                    origin=At.BBS_ARTICLE,
+                    bbs_article=self,
+                    is_viewed=receiver.is_viewed(sender, "at")
+                ))
+        At.objects.bulk_create(create_data)
+
 
 class Comment(APIModel):
     author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="评论作者")
@@ -44,6 +62,22 @@ class Comment(APIModel):
     target = models.ForeignKey(to="self", on_delete=models.DO_NOTHING, null=True, verbose_name="对应评论",
                                related_name="target_comments")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
+
+    def after_create(self, validated_data, serializer):
+        mention = serializer.context["mention"]
+        sender: User = serializer.context["request"].user
+
+        create_data = []
+        for receiver in mention:
+            if receiver != sender and receiver.message_setting.at != MessageSetting.FORBID and receiver.id not in sender.black_me_set:
+                create_data.append(At(
+                    sender=sender,
+                    receiver=receiver,
+                    origin=At.BBS_COMMENT,
+                    bbs_comment=self,
+                    is_viewed=receiver.is_viewed(sender, "at")
+                ))
+        At.objects.bulk_create(create_data)
 
 
 class Category(APIModel):
