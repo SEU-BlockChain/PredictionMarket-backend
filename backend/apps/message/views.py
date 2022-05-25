@@ -108,3 +108,23 @@ class AtView(APIModelViewSet):
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.at_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)
+
+
+class SystemView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    serializer_class = SystemSerializer
+    queryset = System
+    code = {
+        "list": response_code.SUCCESS_GET_SYSTEM_LIST,
+        "destroy": response_code.SUCCESS_DELETE_SYSTEM
+    }
+    exclude = ["create", "retrieve", "update"]
+
+    def get_queryset(self):
+        return self.queryset.objects.filter(
+            is_active=True,
+            receiver=self.request.user,
+        ).order_by("-id")
+
+    def after_list(self, queryset, request, *args, **kwargs):
+        request.user.system_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)

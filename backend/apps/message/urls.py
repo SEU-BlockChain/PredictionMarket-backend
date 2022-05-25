@@ -8,6 +8,7 @@ router.register("dynamic", DynamicView, "")
 router.register("reply", ReplyView, "")
 router.register("like", LikeView, "")
 router.register("at", AtView, "")
+router.register("system", SystemView, "")
 router.register("", MessageSettingView, "")
 
 urlpatterns = [

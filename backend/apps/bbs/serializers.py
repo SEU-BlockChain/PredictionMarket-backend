@@ -391,7 +391,7 @@ class ChildrenCommentSerializer(APIModelSerializer):
         comment = comment.first()
         content = "".join([
             content[:3],
-            f'回复&nbsp;<span style="color: rgb(54, 88, 226);">@{comment.author.username}:</span>',
+            f'回复&nbsp;<span style="color: rgb(54, 88, 226);" uid="{comment.author.id}">@{comment.author.username}:</span>',
             content[3:]
         ])
         return content

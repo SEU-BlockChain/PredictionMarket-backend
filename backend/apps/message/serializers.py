@@ -320,3 +320,14 @@ class AtSerializer(APIModelSerializer):
             "time",
             "is_viewed",
         ]
+
+
+class SystemSerializer(APIModelSerializer):
+    class Meta:
+        model = System
+        fields = [
+            "id",
+            "content",
+            "time",
+            "is_viewed",
+        ]
