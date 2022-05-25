@@ -13,22 +13,15 @@ if __name__ == '__main__':
     from django.db.models import F, Q, Count, Sum
     from django.db.models.query import QuerySet
 
-    a = User.objects.get(id=1)
-    query = a.like_me.raw(
-        """
-        select 
-            *,count(*) num,min(is_viewed) viewed
-        from 
-            message_like 
-        where 
-            receiver_id=1 
-        group by 
-            bbs_article_id,bbs_comment_id
-        order by 
-            is_viewed,
-            time desc 
+    username = "huhu"
+    query = User.objects.raw(
+        f"""
+        SELECT * FROM 
+            user_user 
+        WHERE 
+            username="{username}"
         """
     )
 
     for i in query:
-        print(i.viewed, i.id)
+        print(i.username)

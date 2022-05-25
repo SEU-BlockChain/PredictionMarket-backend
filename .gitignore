@@ -6,3 +6,4 @@ backend/apps/*/migrations/*.py
 !backend/apps/*/migrations/__init__.py
 backend/privacy
 */tests.py
+backend/test.py

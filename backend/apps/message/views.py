@@ -20,7 +20,6 @@ class MessageSettingView(ViewSet):
                 "成功获取消息设置",
                 MessageSettingSerializer(self.request.user.message_setting).data)
         else:
-            print(request.data)
             ser = MessageSettingSerializer(request.user.message_setting, request.data)
             ser.is_valid(True)
             ser.save()
@@ -43,9 +42,8 @@ class DynamicView(APIModelViewSet):
     ]
 
     def get_queryset(self):
-        return self.queryset.objects.filter(
+        return self.request.user.dynamic_me.filter(
             is_active=True,
-            receiver=self.request.user,
             sender_id__in=self.request.user.my_follow_set - self.request.user.my_black_set
         ).order_by("-id")
 
@@ -64,9 +62,8 @@ class ReplyView(APIModelViewSet):
     exclude = ["create", "retrieve", "update"]
 
     def get_queryset(self):
-        return self.queryset.objects.filter(
+        return self.request.user.reply_me.filter(
             is_active=True,
-            receiver=self.request.user,
             sender_id__in=self.request.user.my_follow_set - self.request.user.my_black_set
         ).order_by("-id")
 
@@ -100,9 +97,8 @@ class AtView(APIModelViewSet):
     exclude = ["create", "retrieve", "update"]
 
     def get_queryset(self):
-        return self.queryset.objects.filter(
+        return self.request.user.at_me.filter(
             is_active=True,
-            receiver=self.request.user,
             sender_id__in=self.request.user.my_follow_set - self.request.user.my_black_set
         ).order_by("-id")
 
@@ -121,10 +117,7 @@ class SystemView(APIModelViewSet):
     exclude = ["create", "retrieve", "update"]
 
     def get_queryset(self):
-        return self.queryset.objects.filter(
-            is_active=True,
-            receiver=self.request.user,
-        ).order_by("-id")
+        return self.request.user.system_me.filter(is_active=True).order_by("-id")
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.system_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)

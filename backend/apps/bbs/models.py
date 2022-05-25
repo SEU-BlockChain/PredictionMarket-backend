@@ -20,6 +20,7 @@ class Article(APIModel):
     description = models.TextField(verbose_name="文章摘要")
     content = models.TextField(verbose_name="文章内容")
     raw_content = models.TextField(verbose_name="文章内容原始数据")
+    top = models.IntegerField(default=None, null=True, verbose_name="置顶顺序")
 
     view_num = models.IntegerField(default=0, verbose_name="浏览数")
     up_num = models.IntegerField(default=0, verbose_name="点赞数")
