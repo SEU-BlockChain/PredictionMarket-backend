@@ -107,7 +107,7 @@ class ArticleView(APIModelViewSet):
         Dynamic.handle_delete(instance, Origin.BBS_ARTICLE)
         Like.handle_delete(instance, Origin.BBS_ARTICLE)
         Reply.handle_delete(instance, Origin.BBS_ARTICLE)
-        At.handle_delete(instance, Origin.BBS_COMMENT)
+        At.handle_delete(instance, Origin.BBS_ARTICLE)
 
     @action(["GET"], True)
     def raw(self, request, pk):
@@ -136,21 +136,25 @@ class ArticleView(APIModelViewSet):
 
         receiver = article.author
         sender = request.user
-        if receiver != sender and receiver.message_setting.like != MessageSetting.FORBID:
-            like = Like.objects.filter(bbs_article=article, sender=sender)
-            if request.data.get("is_up") and not like:
-                Like.objects.create(
-                    origin=Like.BBS_ARTICLE,
-                    bbs_article_id=pk,
-                    sender=sender,
-                    receiver=receiver,
-                    is_viewed=receiver.is_viewed(sender, "like")
-                )
-            else:
-                like = like.first()
-                like.time = datetime.datetime.now()
-                like.is_active = request.data.get("is_up") and not like.is_active
-                like.save()
+        if receiver != sender:
+            receiver.up_num += 1
+            receiver.save()
+            if receiver.message_setting.like != MessageSetting.FORBID:
+
+                like = Like.objects.filter(bbs_article=article, sender=sender)
+                if request.data.get("is_up") and not like:
+                    Like.objects.create(
+                        origin=Like.BBS_ARTICLE,
+                        bbs_article_id=pk,
+                        sender=sender,
+                        receiver=receiver,
+                        is_viewed=receiver.is_viewed(sender, "like")
+                    )
+                else:
+                    like = like.first()
+                    like.time = datetime.datetime.now()
+                    like.is_active = request.data.get("is_up") and not like.is_active
+                    like.save()
 
         return APIResponse(response_code.SUCCESS_VOTE_ARTICLE, "评价成功")
 

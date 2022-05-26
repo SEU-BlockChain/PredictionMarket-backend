@@ -331,3 +331,48 @@ class SystemSerializer(APIModelSerializer):
             "time",
             "is_viewed",
         ]
+
+
+class PrivateSerializer(APIModelSerializer):
+    sender = AuthorSerializer()
+    is_viewed = serializers.SerializerMethodField()
+    time = serializers.SerializerMethodField()
+    new = serializers.SerializerMethodField()
+
+    def get_is_viewed(self, instance):
+        return instance.viewed
+
+    def get_time(self, instance):
+        return instance.last_time
+
+    def get_new(self, instance):
+        return instance.new
+
+    class Meta:
+        model = Private
+        fields = [
+            "id",
+            "content",
+            "time",
+            "is_viewed",
+            "sender",
+            "new"
+        ]
+
+
+class PrivateDetailSerializer(APIModelSerializer):
+    class Meta:
+        model = Private
+        fields = [
+            "id",
+            "sender_id",
+            "receiver_id",
+            "content",
+            "time",
+            "is_viewed",
+        ]
+
+    def create(self, validated_data):
+        validated_data["sender"] = self.context["request"].user
+        validated_data["receiver_id"] = self.context["request"].query_params.get("uid")
+        return super().create(validated_data)

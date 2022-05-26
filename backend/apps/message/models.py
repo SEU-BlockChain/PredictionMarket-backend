@@ -81,7 +81,7 @@ class At(AbstractMessage, AbstractOrigin):
     def handle_delete(cls, instance, category):
         if category == Origin.BBS_ARTICLE:
             queryset = cls.objects.filter(
-                origin=cls.BBS_COMMENT,
+                origin=cls.BBS_ARTICLE,
                 bbs_comment__article=instance,
                 is_active=True,
             ).all()
@@ -155,7 +155,7 @@ class System(AbstractMessage):
 class Private(AbstractMessage):
     sender = UserField(verbose_name="发信人", related_name="my_private")
     receiver = UserField(verbose_name="收信人", related_name="private_me")
-    content = models.TextField(verbose_name="消息详情")
+    content = models.CharField(max_length=256, verbose_name="消息详情")
 
 
 class Dynamic(AbstractMessage, AbstractOrigin):

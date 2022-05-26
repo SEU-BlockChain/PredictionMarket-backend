@@ -1,3 +1,4 @@
+from django.db.models import Q
 from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
@@ -6,7 +7,7 @@ from backend.libs.wraps.authenticators import CommonJwtAuthentication
 from backend.libs.wraps.views import APIModelViewSet
 from backend.libs.wraps.response import APIResponse
 from backend.libs.constants import response_code
-from backend.libs.scripts.sql import like_sql
+from backend.libs.scripts.sql import like_sql, private_sql
 
 
 class MessageSettingView(ViewSet):
@@ -121,3 +122,48 @@ class SystemView(APIModelViewSet):
 
     def after_list(self, queryset, request, *args, **kwargs):
         request.user.system_me.all().filter(is_active=True, is_viewed=False).update(is_viewed=True)
+
+
+class PrivateView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    serializer_class = PrivateSerializer
+    queryset = Private
+    code = {
+        "list": response_code.SUCCESS_GET_PRIVATE_LIST,
+        "destroy": response_code.SUCCESS_DELETE_PRIVATE
+    }
+    exclude = ["create", "retrieve", "update"]
+
+    def get_queryset(self):
+        return Private.objects.raw(private_sql % self.request.user.id)
+
+    def destroy(self, request, *args, **kwargs):
+        pass
+
+
+class PrivateDetailView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    serializer_class = PrivateDetailSerializer
+    queryset = Private
+    code = {
+        "list": response_code.SUCCESS_GET_PRIVATE_DETAIL_LIST,
+        "create": response_code.SUCCESS_POST_PRIVATE_DETAIL,
+        "destroy": response_code.SUCCESS_DELETE_PRIVATE_DETAIL
+    }
+    exclude = ["retrieve", "update"]
+
+    def get_queryset(self):
+        if self.action == "list":
+            return Private.objects.filter(
+                is_active=True,
+            ).filter(
+                Q(
+                    sender_id=self.request.user.id,
+                    receiver_id=self.request.query_params.get("uid")
+                ) | Q(
+                    sender_id=self.request.query_params.get("uid"),
+                    receiver_id=self.request.user.id
+                )
+            ).all().order_by("time")
+
+        return Private.objects.all()
