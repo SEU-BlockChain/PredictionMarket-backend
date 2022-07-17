@@ -86,20 +86,19 @@ class ArticleView(APIModelViewSet):
             return APIResponse(response_code.NO_PERMISSION, "无权限")
 
     def after_create(self, instance, request, *args, **kwargs):
-        a = request.user.follow_me.exclude(
+        follower_list = request.user.follow_me.exclude(
             follower__message_setting__dynamic=0,
         ).filter(
             ~Q(follower_id__in=request.user.black_me_set)
         ).all()
-        create_data = []
-        for follow_record in a:
-            create_data.append(Dynamic(
-                sender=request.user,
-                receiver=follow_record.follower,
-                origin=Dynamic.BBS_ARTICLE,
-                bbs_article=instance,
-                is_viewed=follow_record.follower.message_setting.dynamic == MessageSetting.IGNORE,
-            ))
+
+        create_data = map(lambda follower: Dynamic(
+            sender=request.user,
+            receiver=follower.follower,
+            origin=Origin.BBS_ARTICLE,
+            bbs_article=instance,
+            is_viewed=follower.follower.message_setting.dynamic == MessageSetting.IGNORE,
+        ), follower_list)
 
         Dynamic.objects.bulk_create(create_data)
 
@@ -137,14 +136,12 @@ class ArticleView(APIModelViewSet):
         receiver = article.author
         sender = request.user
         if receiver != sender:
-            receiver.up_num += 1
-            receiver.save()
-            if receiver.message_setting.like != MessageSetting.FORBID:
+            if receiver.message_setting.like:
 
                 like = Like.objects.filter(bbs_article=article, sender=sender)
                 if request.data.get("is_up") and not like:
                     Like.objects.create(
-                        origin=Like.BBS_ARTICLE,
+                        origin=Origin.BBS_ARTICLE,
                         bbs_article_id=pk,
                         sender=sender,
                         receiver=receiver,
@@ -193,9 +190,9 @@ class CommentView(APIModelViewSet):
 
         receiver = instance.article.author
         sender = request.user
-        if receiver != sender and receiver.message_setting.reply != MessageSetting.FORBID:
+        if receiver != sender and receiver.message_setting.reply:
             Reply.objects.create(
-                origin=Reply.BBS_COMMENT,
+                origin=Origin.BBS_ARTICLE,
                 bbs_comment=instance,
                 sender=sender,
                 receiver=receiver,
@@ -227,11 +224,11 @@ class CommentView(APIModelViewSet):
 
         receiver = comment.author
         sender = request.user
-        if receiver != sender and receiver.message_setting.like != MessageSetting.FORBID:
-            like = Like.objects.filter(origin=Like.BBS_COMMENT, bbs_comment=comment, sender=sender)
+        if receiver != sender and receiver.message_setting.like:
+            like = Like.objects.filter(origin=Origin.BBS_COMMENT, bbs_comment=comment, sender=sender)
             if request.data.get("is_up") and not like:
                 Like.objects.create(
-                    origin=Like.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment_id=pk,
                     sender=sender,
                     receiver=receiver,
@@ -279,14 +276,12 @@ class ChildrenCommentView(APIModelViewSet):
         instance.parent.comment_num += 1
         instance.parent.save()
 
-        if instance.target:
-            receiver = instance.target.author
-        else:
-            receiver = instance.parent.author
+        receiver = instance.target.author if instance.target else instance.parent.author
         sender = request.user
-        if receiver != sender and receiver.message_setting.reply != MessageSetting.FORBID:
+
+        if receiver != sender and receiver.message_setting.reply:
             Reply.objects.create(
-                origin=Reply.BBS_COMMENT,
+                origin=Origin.BBS_COMMENT,
                 bbs_comment=instance,
                 sender=sender,
                 receiver=receiver,

@@ -5,8 +5,7 @@ from rest_framework.viewsets import ViewSet
 from rest_framework.decorators import action
 
 from .serializers import *
-from message.models import Dynamic
-from backend.libs.wraps.response import UserInfoResponse, OtherUserInfoResponse, APIResponse
+from backend.libs.wraps.response import UserInfoResponse, APIResponse
 from backend.libs.wraps.authenticators import CommonJwtAuthentication, UserInfoAuthentication
 from backend.libs.wraps.views import APIModelViewSet, Pag
 from backend.utils.COS import *

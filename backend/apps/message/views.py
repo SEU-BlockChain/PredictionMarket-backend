@@ -40,6 +40,7 @@ class DynamicView(APIModelViewSet):
         "sender__id",
         "sender__username",
         "bbs_article__title",
+        "special_column__title",
     ]
 
     def get_queryset(self):
@@ -64,8 +65,7 @@ class ReplyView(APIModelViewSet):
 
     def get_queryset(self):
         return self.request.user.reply_me.filter(
-            is_active=True,
-            sender_id__in=self.request.user.my_follow_set - self.request.user.my_black_set
+            Q(is_active=True) & ~Q(sender_id__in=self.request.user.my_black_set)
         ).order_by("-id")
 
     def after_list(self, queryset, request, *args, **kwargs):
@@ -99,8 +99,7 @@ class AtView(APIModelViewSet):
 
     def get_queryset(self):
         return self.request.user.at_me.filter(
-            is_active=True,
-            sender_id__in=self.request.user.my_follow_set - self.request.user.my_black_set
+            Q(is_active=True) & ~Q(sender_id__in=self.request.user.my_black_set)
         ).order_by("-id")
 
     def after_list(self, queryset, request, *args, **kwargs):

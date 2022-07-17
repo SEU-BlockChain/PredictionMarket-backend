@@ -34,7 +34,10 @@ INSTALLED_APPS = [
 
     "ask",
     "bbs",
-    "column",
+    "special",
+    "information",
+    "other",
+    "task",
     "common",
     "message",
     "user",

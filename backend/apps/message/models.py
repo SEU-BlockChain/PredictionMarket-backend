@@ -9,6 +9,8 @@ UserField = partial(models.ForeignKey, to="user.User", on_delete=models.DO_NOTHI
 class Origin:
     BBS_ARTICLE = 0
     BBS_COMMENT = 1
+    SPECIAL_COLUMN = 2
+    SPECIAL_COMMENT = 3
 
 
 class AbstractMessage(APIModel):
@@ -21,27 +23,23 @@ class AbstractMessage(APIModel):
 
 
 class AbstractOrigin(APIModel):
-    BBS_ARTICLE = 0
-    BBS_COMMENT = 1
     STATUS_CHOICES = [
-        (BBS_ARTICLE, "论坛文章"),
-        (BBS_COMMENT, "论坛评论"),
+        (Origin.BBS_ARTICLE, "论坛文章"),
+        (Origin.BBS_COMMENT, "论坛评论"),
+        (Origin.SPECIAL_COLUMN, "专栏帖子"),
+        (Origin.SPECIAL_COMMENT, "专栏评论")
     ]
     origin = models.IntegerField(choices=STATUS_CHOICES, null=True, default=None, verbose_name="来源")
     bbs_article = models.ForeignKey(to="bbs.Article", null=True, default=None, on_delete=models.DO_NOTHING)
     bbs_comment = models.ForeignKey(to="bbs.Comment", null=True, default=None, on_delete=models.DO_NOTHING)
+    special_column = models.ForeignKey(to="special.Column", null=True, default=None, on_delete=models.DO_NOTHING)
+    special_comment = models.ForeignKey(to="special.Comment", null=True, default=None, on_delete=models.DO_NOTHING)
 
     class Meta:
         abstract = True
 
 
-class Reply(AbstractMessage):
-    BBS_COMMENT = 0
-    STATUS_CHOICES = [
-        (BBS_COMMENT, "论坛评论"),
-    ]
-    origin = models.IntegerField(choices=STATUS_CHOICES, null=True, default=None, verbose_name="来源")
-    bbs_comment = models.ForeignKey(to="bbs.Comment", null=True, default=None, on_delete=models.DO_NOTHING)
+class Reply(AbstractMessage, AbstractOrigin):
     sender = UserField(verbose_name="发信人", related_name="my_reply")
     receiver = UserField(verbose_name="收信人", related_name="reply_me")
 
@@ -49,18 +47,17 @@ class Reply(AbstractMessage):
     def handle_delete(cls, instance, category):
         if category == Origin.BBS_ARTICLE:
             queryset = cls.objects.filter(
-                origin=cls.BBS_COMMENT,
                 bbs_comment__article=instance,
                 is_active=True,
             ).all()
         elif category == Origin.BBS_COMMENT:
             queryset = cls.objects.filter(
                 Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__parent=instance,
                     is_active=True
                 ) | Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__target=instance,
                     is_active=True
                 )
@@ -81,18 +78,18 @@ class At(AbstractMessage, AbstractOrigin):
     def handle_delete(cls, instance, category):
         if category == Origin.BBS_ARTICLE:
             queryset = cls.objects.filter(
-                origin=cls.BBS_ARTICLE,
+                origin=Origin.BBS_ARTICLE,
                 bbs_comment__article=instance,
                 is_active=True,
             ).all()
         elif category == Origin.BBS_COMMENT:
             queryset = cls.objects.filter(
                 Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__parent=instance,
                     is_active=True
                 ) | Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__target=instance,
                     is_active=True
                 )
@@ -114,11 +111,11 @@ class Like(AbstractMessage, AbstractOrigin):
         if category == Origin.BBS_ARTICLE:
             queryset = cls.objects.filter(
                 Q(
-                    origin=cls.BBS_ARTICLE,
+                    origin=Origin.BBS_ARTICLE,
                     bbs_article=instance,
                     is_active=True,
                 ) | Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__article=instance,
                     is_active=True
                 )
@@ -126,15 +123,15 @@ class Like(AbstractMessage, AbstractOrigin):
         elif category == Origin.BBS_COMMENT:
             queryset = cls.objects.filter(
                 Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment=instance,
                     is_active=True
                 ) | Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__parent=instance,
                     is_active=True
                 ) | Q(
-                    origin=cls.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__target=instance,
                     is_active=True
                 )
@@ -167,18 +164,18 @@ class Dynamic(AbstractMessage, AbstractOrigin):
         if category == Origin.BBS_ARTICLE:
             queryset = cls.objects.filter(
                 Q(
-                    origin=Dynamic.BBS_ARTICLE,
+                    origin=Origin.BBS_ARTICLE,
                     bbs_article=instance,
                     is_active=True
                 ) | Q(
-                    origin=Dynamic.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment__article=instance,
                     is_active=True
                 )
             ).all()
         elif category == Origin.BBS_COMMENT:
             queryset = cls.objects.filter(
-                origin=Dynamic.BBS_COMMENT,
+                origin=Origin.BBS_COMMENT,
                 bbs_comment=instance,
                 is_active=True
             ).all()

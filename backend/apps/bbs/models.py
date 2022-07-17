@@ -1,6 +1,6 @@
 from backend.libs.wraps.models import APIModel, models
 import datetime
-from message.models import At, MessageSetting
+from message.models import At, Origin
 from user.models import User
 
 
@@ -36,13 +36,15 @@ class Article(APIModel):
         mention = serializer.context["mention"]
         sender: User = serializer.context["request"].user
 
+        sender.daily.add("bbs_post")
+
         create_data = []
         for receiver in mention:
-            if receiver != sender and receiver.message_setting.at != MessageSetting.FORBID and receiver.id not in sender.black_me_set:
+            if receiver != sender and receiver.message_setting.at and receiver.id not in sender.black_me_set:
                 create_data.append(At(
                     sender=sender,
                     receiver=receiver,
-                    origin=At.BBS_ARTICLE,
+                    origin=Origin.BBS_ARTICLE,
                     bbs_article=self,
                     is_viewed=receiver.is_viewed(sender, "at")
                 ))
@@ -53,7 +55,7 @@ class Comment(APIModel):
     author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="评论作者")
     article = models.ForeignKey(to="Article", on_delete=models.DO_NOTHING, verbose_name="对应文章")
     content = models.TextField(verbose_name="评论内容")
-    description = models.TextField(verbose_name="文章摘要")
+    description = models.TextField(verbose_name="评论摘要")
     up_num = models.IntegerField(default=0, verbose_name="点赞数")
     down_num = models.IntegerField(default=0, verbose_name="点踩数")
     comment_num = models.IntegerField(default=0, verbose_name="评论数")
@@ -68,13 +70,19 @@ class Comment(APIModel):
         mention = serializer.context["mention"]
         sender: User = serializer.context["request"].user
 
+        sender.daily.add("comment")
+        if self.target:
+            self.parent.author.daily.add("commented")
+        else:
+            self.article.author.daily.add("commented")
+
         create_data = []
         for receiver in mention:
-            if receiver != sender and receiver.message_setting.at != MessageSetting.FORBID and receiver.id not in sender.black_me_set:
+            if receiver != sender and receiver.message_setting.at and receiver.id not in sender.black_me_set:
                 create_data.append(At(
                     sender=sender,
                     receiver=receiver,
-                    origin=At.BBS_COMMENT,
+                    origin=Origin.BBS_COMMENT,
                     bbs_comment=self,
                     is_viewed=receiver.is_viewed(sender, "at")
                 ))

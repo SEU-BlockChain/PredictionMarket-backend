@@ -1,0 +1,20 @@
+from .models import *
+from message.models import MessageSetting, System
+from backend.libs.wraps.serializers import APIModelSerializer
+
+
+class InfoSerializer(APIModelSerializer):
+    class Meta:
+        model = Daily
+        fields = [
+            "sign",
+            "bbs_post",
+            "column_post",
+            "answer_adopted",
+            "comment",
+            "like",
+            "comment_liked",
+            "post_liked",
+            "commented",
+            "stared",
+        ]

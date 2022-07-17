@@ -37,10 +37,22 @@ class UserInfoAuthentication(BaseJSONWebTokenAuthentication):
         return None
 
 
-class StaffJwtAuthentication(CommonJwtAuthentication):
+class StaffAuthentication(CommonJwtAuthentication):
     def authenticate(self, request):
         user, token = super().authenticate(request)
         if not user.is_staff:
             raise AuthenticationFailed("不是管理员账号")
 
         return user, token
+
+
+def PermissionAuthentication(*args):
+    class Auth(CommonJwtAuthentication):
+        def authenticate(self, request):
+            user, token = super().authenticate(request)
+            if any(map(lambda permission: permission not in user.permission_set, args)):
+                raise AuthenticationFailed("无权限")
+
+            return user, token
+
+    return Auth

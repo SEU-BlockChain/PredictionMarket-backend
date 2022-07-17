@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from user.models import User, Metal
+from user.models import *
 from rest_framework_jwt.serializers import jwt_payload_handler, jwt_encode_handler
 
 
@@ -32,9 +32,14 @@ class MetalSerializer(serializers.ModelSerializer):
         ]
 
 
+
 class UserSerializer(serializers.ModelSerializer):
+    permission = serializers.SerializerMethodField()
     metal = MetalSerializer(many=True)
     token = serializers.SerializerMethodField()
+
+    def get_permission(self, instance: User):
+        return instance.permission_set
 
     def get_token(self, instance):
         payload = jwt_payload_handler(instance)
@@ -51,12 +56,13 @@ class UserSerializer(serializers.ModelSerializer):
             "icon",
             "description",
             "experience",
+            "permission",
             "metal",
             "is_staff",
             "up_num",
             "attention_num",
             "fans_num",
-            "token"
+            "token",
         ]
 
 
@@ -95,3 +101,12 @@ class OtherUserSerializer(serializers.ModelSerializer):
             "follower"
         ]
 
+
+class SimpleAuthorSerializer(APIModelSerializer):
+    class Meta:
+        model = User
+        fields = [
+            "id",
+            "icon",
+            "username",
+        ]

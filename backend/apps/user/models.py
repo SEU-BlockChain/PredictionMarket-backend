@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from message.models import MessageSetting
+from backend.libs.function.get import getDate
+from task.models import Daily
 
 
 class User(AbstractUser):
@@ -40,11 +42,27 @@ class User(AbstractUser):
     )
 
     def __init__(self, *args, **kwargs):
+        self._permission_set = None
         self._my_black_set = None
         self._black_me_set = None
         self._my_follow_set = None
         self._follow_me_set = None
         super().__init__(*args, **kwargs)
+
+    @property
+    def permission_set(self):
+        if self._permission_set is None:
+            a = []
+            for i in self.permission.filter(is_active=True).all():
+                a.append(i.description)
+            for i in self.group.filter(is_active=True).all():
+                for j in i.permission.filter(is_active=True).all():
+                    a.append(j.description)
+            self._permission_set = set(a) if a else set()
+        return self._permission_set
+
+    def has_permission(self, permission):
+        return permission in self.permission_set
 
     @classmethod
     def is_blacked(cls, user):
@@ -100,6 +118,15 @@ class User(AbstractUser):
 
         return False
 
+    @property
+    def daily(self) -> Daily:
+        today = getDate()
+        record = Daily.objects.filter(user=self, date=today).first()
+        if not record:
+            record = Daily.objects.create(user=self, date=today)
+
+        return record
+
 
 class Metal(models.Model):
     description = models.CharField(max_length=40, null=True, default=None, verbose_name="勋章简介")
@@ -127,6 +154,11 @@ class UserToPermission(models.Model):
 class Group(models.Model):
     description = models.CharField(max_length=40, null=True, default=None, verbose_name="权限组简介")
     is_active = models.BooleanField(default=True, verbose_name="是否有效")
+    permission = models.ManyToManyField(
+        to="Permission",
+        through='GroupToPermission',
+        through_fields=('group', 'permission'),
+    )
 
 
 class UserToGroup(models.Model):

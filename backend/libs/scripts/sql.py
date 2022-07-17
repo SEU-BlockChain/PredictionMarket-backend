@@ -16,7 +16,9 @@ WHERE
     is_active=true and receiver_id = %d 
 GROUP BY
     bbs_article_id,
-    bbs_comment_id 
+    bbs_comment_id,
+    special_column_id,
+    special_comment_id
 ORDER BY
     viewed,
     last_time DESC
