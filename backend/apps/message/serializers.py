@@ -155,7 +155,7 @@ class DynamicSerializer(APIModelSerializer):
         elif instance.origin == Origin.SPECIAL_COMMENT:
             content = DynamicSpecialCommentSerializer(instance.special_comment, context=self.context).data
         else:
-            raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
+            raise SerializerError("异常记录", response_code.INVALID_PARAMS)
         return content
 
     class Meta:
@@ -305,7 +305,7 @@ class ReplySerializer(APIModelSerializer):
         elif instance.origin == Origin.SPECIAL_COMMENT:
             content = ReplySpecialCommentSerializer(instance.special_comment, context=self.context).data
         else:
-            raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
+            raise SerializerError("异常记录", response_code.INVALID_PARAMS)
         return content
 
     class Meta:
@@ -371,7 +371,7 @@ class LikeSerializer(APIModelSerializer):
         elif instance.origin == Origin.SPECIAL_COMMENT:
             content = LikeSpecialCommentSerializer(instance.special_comment).data
         else:
-            raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
+            raise SerializerError("异常记录", response_code.INVALID_PARAMS)
         return content
 
     def get_total(self, instance):
@@ -462,7 +462,7 @@ class AtSerializer(APIModelSerializer):
         elif instance.origin == Origin.SPECIAL_COMMENT:
             content = AtSpecialCommentSerializer(instance.special_comment, context=self.context).data
         else:
-            raise SerializerError(response_code.INVALID_PARAMS, "异常记录")
+            raise SerializerError("异常记录", response_code.INVALID_PARAMS)
         return content
 
     class Meta:

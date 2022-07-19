@@ -1,5 +1,4 @@
 from .models import *
-from message.models import MessageSetting, System
 from backend.libs.wraps.serializers import APIModelSerializer
 
 
