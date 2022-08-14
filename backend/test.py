@@ -9,5 +9,14 @@ if __name__ == '__main__':
 
     from bbs.models import Article
     from user.models import User, Follow
+    from special.models import Column
+    from information.models import News
 
-    print(User.objects.filter(username__regex="^h.*u$"))
+    a = Article.objects.all().values_list(
+        "update_time"
+    ).union(Column.objects.all().values_list(
+        "update_time"
+    )).union(News.objects.all().values_list(
+        "update_time"
+    ))
+    print(a)

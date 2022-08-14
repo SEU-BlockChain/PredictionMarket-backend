@@ -12,6 +12,10 @@ from backend.libs.constants import response_code
 from backend.libs.wraps.response import APIResponse
 from backend.libs.wraps.authenticators import CommonJwtAuthentication
 from backend.libs.wraps.logger import log
+from backend.libs.scripts.sql import recommend_sql
+from bbs.serializers import ArticleSerializer, Article
+from special.serializers import ColumnSerializer, Column
+from information.serializers import NewsSerializer, News
 
 
 class SMSCodeView(ViewSet):
@@ -94,3 +98,57 @@ class ImageView(ViewSet):
         COS.put_obj(file, image)
 
         return APIResponse(response_code.SUCCESS_POST_ISSUE_IMAGE, "成功", {"data": image})
+
+
+#
+# class Top(ViewSet):
+#     @action(["GET"], False)
+#     def home(self):
+
+
+class RecommendView(ViewSet):
+    @action(["GET"], False)
+    def community(self, request):
+        offset = int(request.query_params.get("offset", 0))
+        print(offset)
+        data = {
+            "article": [],
+            "column": [],
+            "news": []
+        }
+
+        for i in Article.objects.raw(recommend_sql % offset):
+            if i.recommend_type == 1:
+                data["article"].append(i.id)
+            if i.recommend_type == 2:
+                data["column"].append(i.id)
+            if i.recommend_type == 3:
+                data["news"].append(i.id)
+        total = len(data["article"]) + len(data["column"]) + len(data["news"])
+
+        class view:
+            action = "list"
+
+        article = ArticleSerializer(
+            Article.objects.filter(author__is_active=True, id__in=data["article"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        column = ColumnSerializer(
+            Column.objects.filter(author__is_active=True, id__in=data["column"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        news = NewsSerializer(
+            News.objects.filter(author__is_active=True, id__in=data["news"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        return APIResponse(code=response_code.SUCCESS_GET_COMMUNITY_RECOMMEND, result={
+            "content": {
+                "article": article,
+                "column": column,
+                "news": news,
+            },
+            "end": total != 10
+        })

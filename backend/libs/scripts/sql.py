@@ -43,3 +43,29 @@ ORDER BY
     viewed,
     last_time DESC;
 """
+
+recommend_sql = """
+SELECT
+    * 
+FROM
+    ( 
+        ( 
+            SELECT id,update_time,1 as recommend_type 
+            FROM bbs_article 
+            where is_active=true
+        ) UNION 
+        ( 
+            SELECT id ,update_time,2 as recommend_type 
+            FROM special_column 
+            where is_active=true and is_audit =true and  is_draft=false
+        ) UNION 
+        ( 
+            SELECT id,update_time,3 as recommend_type 
+            FROM information_news 
+            where is_draft=false and is_active=true
+        ) 
+    ) AS C 
+ORDER BY
+    update_time DESC 
+    LIMIT 10 OFFSET %d
+"""

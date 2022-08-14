@@ -6,6 +6,7 @@ from .views import *
 router = SimpleRouter()
 router.register("", SMSCodeView, "code")
 router.register("image", ImageView, "img")
+router.register("recommend", RecommendView, "img")
 
 urlpatterns = [
     path("", include(router.urls))
