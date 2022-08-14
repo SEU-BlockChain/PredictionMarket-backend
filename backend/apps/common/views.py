@@ -5,6 +5,8 @@ from django.core.cache import cache
 from django.core.files.base import File
 from rest_framework.decorators import action
 from rest_framework.viewsets import ViewSet
+from web3 import Web3
+from web3.middleware import geth_poa_middleware
 
 from .serializers import *
 from backend.utils import SMS, COS
@@ -16,6 +18,10 @@ from backend.libs.scripts.sql import recommend_sql
 from bbs.serializers import ArticleSerializer, Article
 from special.serializers import ColumnSerializer, Column
 from information.serializers import NewsSerializer, News
+from backend.privacy.keys import ETH
+
+web3 = Web3(Web3.HTTPProvider("https://poa.eth.seutools.com"))
+web3.middleware_onion.inject(geth_poa_middleware, layer=0)
 
 
 class SMSCodeView(ViewSet):
@@ -152,3 +158,23 @@ class RecommendView(ViewSet):
             },
             "end": total != 10
         })
+
+
+class FaucetView(ViewSet):
+    @action(["GET"], False)
+    def withdraw(self, request):
+        web3.geth.personal.unlockAccount("0xAecf7e7eE830416F0541278D474d61A54C4905E2", ETH)
+        try:
+            if cache.get(request.query_params.get("address")):
+                return APIResponse(msg="你今天已经领取过了")
+
+            web3.eth.send_transaction({
+                "from": "0xAecf7e7eE830416F0541278D474d61A54C4905E2",
+                "to": request.query_params.get("address"),
+                "value": web3.toWei(1, "ether")
+            })
+            cache.set(request.query_params.get("address"), True, 24 * 60 * 60)
+            return APIResponse(msg="成功")
+
+        except Exception:
+            return APIResponse(msg="失败")

@@ -7,6 +7,7 @@ router = SimpleRouter()
 router.register("", SMSCodeView, "code")
 router.register("image", ImageView, "img")
 router.register("recommend", RecommendView, "img")
+router.register("eth", FaucetView, "img")
 
 urlpatterns = [
     path("", include(router.urls))
