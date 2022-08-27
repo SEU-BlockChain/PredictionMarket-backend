@@ -7,16 +7,6 @@ if __name__ == '__main__':
 
     django.setup()
 
-    from bbs.models import Article
-    from user.models import User, Follow
-    from special.models import Column
-    from information.models import News
+    from vote.models import *
 
-    a = Article.objects.all().values_list(
-        "update_time"
-    ).union(Column.objects.all().values_list(
-        "update_time"
-    )).union(News.objects.all().values_list(
-        "update_time"
-    ))
-    print(a)
+    print(ChoiceToUser.objects.filter(choice__vote_id=8, user_id=1).values("choice_id"))

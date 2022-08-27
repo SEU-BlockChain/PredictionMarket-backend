@@ -41,4 +41,6 @@ INSTALLED_APPS = [
     "common",
     "message",
     "user",
+    "vote",
+    "issue",
 ]

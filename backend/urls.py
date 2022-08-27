@@ -9,4 +9,6 @@ urlpatterns = [
     path("other/", include("other.urls")),
     path("information/", include("information.urls")),
     path("message/", include("message.urls")),
+    path("issue/", include("issue.urls")),
+    path("vote/", include("vote.urls")),
 ]
