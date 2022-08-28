@@ -106,12 +106,6 @@ class ImageView(ViewSet):
         return APIResponse(response_code.SUCCESS_POST_ISSUE_IMAGE, "成功", {"data": image})
 
 
-#
-# class Top(ViewSet):
-#     @action(["GET"], False)
-#     def home(self):
-
-
 class RecommendView(ViewSet):
     @action(["GET"], False)
     def community(self, request):
@@ -178,3 +172,19 @@ class FaucetView(ViewSet):
 
         except Exception:
             return APIResponse(msg="失败")
+
+
+class StickyView(ViewSet):
+    @action(["GET"], False)
+    def banner(self, request):
+        category = request.query_params.get("category")
+        queryset = Banner.objects.filter(category=category).all()
+        ser = BannerSerializer(queryset, many=True)
+        return APIResponse(code=response_code.SUCCESS_GET_BANNER, result={"banner": ser.data})
+
+    @action(["GET"], False)
+    def top(self, request):
+        category = request.query_params.get("category")
+        queryset = Top.objects.filter(category=category).all()
+        ser = TopSerializer(queryset, many=True)
+        return APIResponse(code=response_code.SUCCESS_GET_TOP, result={"top": ser.data})

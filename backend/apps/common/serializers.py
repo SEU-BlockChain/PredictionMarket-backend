@@ -1,9 +1,10 @@
 import re
 
+from .models import *
 from user.models import User
 from backend.utils import SMS
 from backend.libs.constants import response_code, re_patterns
-from backend.libs.wraps.serializers import EmptySerializer, serializers
+from backend.libs.wraps.serializers import EmptySerializer, serializers, APIModelSerializer
 from backend.libs.wraps.errors import SerializerError
 
 
@@ -50,3 +51,21 @@ class SMSSerializer(EmptySerializer):
             raise SerializerError("手机号未注册", response_code.NOT_REGISTERED)
 
         return attrs
+
+
+class BannerSerializer(APIModelSerializer):
+    class Meta:
+        model = Banner
+        fields = [
+            "img",
+            "url"
+        ]
+
+
+class TopSerializer(APIModelSerializer):
+    class Meta:
+        model = Top
+        fields = [
+            "text",
+            "url"
+        ]
