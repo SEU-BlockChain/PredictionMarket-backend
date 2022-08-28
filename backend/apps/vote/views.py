@@ -6,7 +6,7 @@ from rest_framework.decorators import action
 
 from .serializers import *
 from backend.libs.wraps.response import UserInfoResponse, APIResponse
-from backend.libs.wraps.authenticators import CommonJwtAuthentication, PermissionAuthentication
+from backend.libs.wraps.authenticators import CommonJwtAuthentication, UserInfoAuthentication
 from backend.libs.wraps.views import APIModelViewSet
 from backend.libs.constants import response_code
 
@@ -20,8 +20,20 @@ class VoteView(APIModelViewSet):
         "create": response_code.SUCCESS_CREATE_VOTE,
         "retrieve": response_code.SUCCESS_GET_VOTE,
         "list": response_code.SUCCESS_GET_VOTE_LIST,
+        "destroy": response_code.SUCCESS_DELETE_VOTE,
     }
 
+    def get_authenticators(self):
+        if self.request.method == "GET":
+            return [UserInfoAuthentication()]
+
+        return super().get_authenticators()
+
+    def get_queryset(self):
+        if self.action == "destroy":
+            return self.queryset.filter(creator=self.request.user)
+
+        return self.queryset
 
     @action(["POST"], True)
     def submit(self, request, pk):
