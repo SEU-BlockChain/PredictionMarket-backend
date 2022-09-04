@@ -15,7 +15,7 @@ from backend.libs.constants import response_code
 class SimpleCategorySerializer(APIModelSerializer):
     class Meta:
         model = Category
-        fields = ["category","id"]
+        fields = ["category", "id"]
 
 
 class DraftSerializer(APIModelSerializer):
