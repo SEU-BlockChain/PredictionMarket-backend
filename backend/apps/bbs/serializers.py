@@ -12,14 +12,14 @@ from backend.libs.wraps.errors import SerializerError
 from backend.libs.constants import response_code
 
 
-class CategorySerializer(APIModelSerializer):
+class SimpleCategorySerializer(APIModelSerializer):
     class Meta:
         model = Category
-        fields = "__all__"
+        fields = "category"
 
 
 class DraftSerializer(APIModelSerializer):
-    category = CategorySerializer(read_only=True)
+    category = SimpleCategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
 
     class Meta:
@@ -60,7 +60,7 @@ class DraftSerializer(APIModelSerializer):
 
 class ArticleSerializer(APIModelSerializer):
     author = OtherUserSerializer(read_only=True)
-    category = CategorySerializer(read_only=True)
+    category = SimpleCategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
     is_up = serializers.SerializerMethodField(read_only=True)
 
@@ -510,3 +510,9 @@ class VoteCommentSerializer(EmptySerializer):
     @staticmethod
     def _update_num(comment_id, up, down):
         Comment.objects.filter(id=comment_id).update(up_num=F("up_num") + up, down_num=F("down_num") + down)
+
+
+class CategorySerializer(APIModelSerializer):
+    class Meta:
+        model = Category
+        fields = "__all__"

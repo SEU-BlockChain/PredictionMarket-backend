@@ -91,6 +91,7 @@ class Comment(APIModel):
 
 class Category(APIModel):
     category = models.CharField(max_length=16, verbose_name="分类名")
+    description = models.TextField(verbose_name="描述", default="暂无介绍~")
 
 
 class View(APIModel):

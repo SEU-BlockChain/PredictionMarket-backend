@@ -298,3 +298,13 @@ class ChildrenCommentView(APIModelViewSet):
         Like.handle_delete(instance, Origin.BBS_COMMENT)
         Reply.handle_delete(instance, Origin.BBS_COMMENT)
         At.handle_delete(instance, Origin.BBS_COMMENT)
+
+
+class CategoryView(APIModelViewSet):
+    authentication_classes = [UserInfoAuthentication]
+    queryset = Category
+    serializer_class = CategorySerializer
+    exclude = ["list", "destroy", "create", "update"]
+    code = {
+        "retrieve": response_code.SUCCESS_GET_BBS_CATEGORY
+    }
