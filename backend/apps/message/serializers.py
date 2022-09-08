@@ -17,7 +17,7 @@ class MessageSettingSerializer(APIModelSerializer):
 class DynamicBBSArticleSerializer(APIModelSerializer):
     author = SimpleAuthorSerializer()
     is_up = serializers.SerializerMethodField()
-    category = bbs_serializers.CategorySerializer()
+    category = bbs_serializers.SimpleCategorySerializer()
 
     def get_is_up(self, instance):
         author_id = self.context["request"].user.id

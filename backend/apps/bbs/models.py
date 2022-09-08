@@ -92,6 +92,10 @@ class Comment(APIModel):
 class Category(APIModel):
     category = models.CharField(max_length=16, verbose_name="分类名")
     description = models.TextField(verbose_name="描述", default="暂无介绍~")
+    icon = models.CharField(max_length=64, default=None, verbose_name="首页icon")
+    icon_detail = models.CharField(max_length=64, default=None, verbose_name="详情icon")
+    stuff = models.BooleanField(default=False, verbose_name="仅官方")
+    top = models.IntegerField(default=0, verbose_name="展示优先级")
 
 
 class View(APIModel):

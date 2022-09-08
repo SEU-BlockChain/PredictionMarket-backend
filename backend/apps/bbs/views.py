@@ -302,9 +302,16 @@ class ChildrenCommentView(APIModelViewSet):
 
 class CategoryView(APIModelViewSet):
     authentication_classes = [UserInfoAuthentication]
-    queryset = Category
+    queryset = Category.objects.all().order_by("top")
     serializer_class = CategorySerializer
-    exclude = ["list", "destroy", "create", "update"]
+    exclude = ["destroy", "create", "update"]
     code = {
+        "list": response_code.SUCCESS_LIST_BBS_CATEGORY,
         "retrieve": response_code.SUCCESS_GET_BBS_CATEGORY
     }
+
+    def get_queryset(self):
+        if self.action == "list" and self.request.query_params.get("type") == "edit" and not self.request.user.is_staff:
+            return self.queryset.filter(stuff=False)
+
+        return super().get_queryset()

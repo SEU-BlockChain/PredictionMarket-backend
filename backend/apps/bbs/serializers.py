@@ -515,4 +515,34 @@ class VoteCommentSerializer(EmptySerializer):
 class CategorySerializer(APIModelSerializer):
     class Meta:
         model = Category
-        fields = "__all__"
+        fields = [
+            "id",
+            "category",
+            "description",
+            "icon",
+            "icon_detail",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        view = self.context["view"]
+        self.context["action"] = view.action
+        if view.action == "retrieve":
+            remove = [
+                "icon",
+            ]
+        elif view.action == "list" and view.request.query_params.get("type") == "edit":
+            remove = [
+                "description",
+                "icon_detail",
+                "icon",
+            ]
+        else:
+            remove = [
+                "description",
+                "icon_detail",
+            ]
+
+        for i in remove:
+            self.fields.pop(i)
