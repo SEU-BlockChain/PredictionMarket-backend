@@ -216,6 +216,12 @@ class SignView(ViewSet):
 
     @action(["GET"], False)
     def transfer(self, request):
+        if datetime.datetime.now().day < 10:
+            return APIResponse(response_code.INVALID_PARAMS, msg="未开始，请等到10号")
+
+        if datetime.datetime.now().day > 20:
+            return APIResponse(response_code.INVALID_PARAMS, msg="已结算")
+
         address = request.query_params.get("address")
         if not address:
             return APIResponse(response_code.INVALID_PARAMS, msg="缺少参数")
