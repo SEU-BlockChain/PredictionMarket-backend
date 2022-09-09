@@ -1,5 +1,6 @@
 from uuid import uuid4
 from random import randint
+import datetime
 
 from django.core.cache import cache
 from django.core.files.base import File
@@ -19,6 +20,7 @@ from bbs.serializers import ArticleSerializer, Article
 from special.serializers import ColumnSerializer, Column
 from information.serializers import NewsSerializer, News
 from backend.privacy.keys import ETH
+from backend.libs.contract.abi import predictionMarket
 
 web3 = Web3(Web3.HTTPProvider("https://poa.eth.seutools.com"))
 web3.middleware_onion.inject(geth_poa_middleware, layer=0)
@@ -110,7 +112,6 @@ class RecommendView(ViewSet):
     @action(["GET"], False)
     def community(self, request):
         offset = int(request.query_params.get("offset", 0))
-        print(offset)
         data = {
             "article": [],
             "column": [],
@@ -154,10 +155,13 @@ class RecommendView(ViewSet):
         })
 
 
+addr = web3.toChecksumAddress("0xAecf7e7eE830416F0541278D474d61A54C4905E2")
+
+
 class FaucetView(ViewSet):
     @action(["GET"], False)
     def withdraw(self, request):
-        web3.geth.personal.unlockAccount("0xAecf7e7eE830416F0541278D474d61A54C4905E2", ETH)
+        web3.geth.personal.unlockAccount(addr, ETH)
         try:
             if cache.get(request.query_params.get("address")):
                 return APIResponse(msg="你今天已经领取过了")
@@ -188,3 +192,55 @@ class StickyView(ViewSet):
         queryset = Top.objects.filter(category=category).all()
         ser = TopSerializer(queryset, many=True)
         return APIResponse(code=response_code.SUCCESS_GET_TOP, result={"top": ser.data})
+
+
+market = web3.eth.contract(
+    address=web3.toChecksumAddress("0xFb7eEb8d5988A50af5EfD2F438540236c72CD741"),
+    abi=predictionMarket
+)
+
+
+class SignView(ViewSet):
+    @action(["GET"], False)
+    def add(self, request):
+        address = request.query_params.get("address")
+        if not address:
+            return APIResponse(response_code.INVALID_PARAMS, msg="缺少参数")
+
+        if Sign.objects.filter(address=address).exists():
+            return APIResponse(response_code.INVALID_PARAMS, msg="您已报名")
+
+        Sign.objects.create(address=address)
+
+        return APIResponse(msg="报名成功")
+
+    @action(["GET"], False)
+    def transfer(self, request):
+        address = request.query_params.get("address")
+        if not address:
+            return APIResponse(response_code.INVALID_PARAMS, msg="缺少参数")
+        user = Sign.objects.filter(address=address)
+        if not user:
+            return APIResponse(response_code.INVALID_PARAMS, msg="请先报名")
+
+        if ReceiveRecord.objects.filter(address__address=address, data__day=datetime.datetime.now().day).exists():
+            return APIResponse(response_code.INVALID_PARAMS, msg="您今天领取过了，请每天再来")
+        web3.geth.personal.unlockAccount(addr, ETH)
+        try:
+            web3.geth.personal.unlockAccount(addr, ETH)
+            market.functions.transfer(address, 10000).transact({
+                "from": "0xAecf7e7eE830416F0541278D474d61A54C4905E2"
+            })
+            ReceiveRecord.objects.create(address=user.first())
+            return APIResponse(msg="成功")
+
+        except Exception as e:
+            return APIResponse(msg="失败")
+
+    @action(["get"], False)
+    def signed(self, request):
+        address = request.query_params.get("address")
+        if not address:
+            return APIResponse(response_code.INVALID_PARAMS, msg="缺少参数")
+
+        return APIResponse(msg="ok", result={"signed": Sign.objects.filter(address=address).exists()})

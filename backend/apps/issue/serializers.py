@@ -12,5 +12,4 @@ from backend.libs.wraps.errors import SerializerError
 from backend.libs.constants import response_code
 
 
-class IssueCommentSerializer(APIModelSerializer):
-    pass
+

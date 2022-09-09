@@ -9,6 +9,7 @@ router.register("image", ImageView, "")
 router.register("recommend", RecommendView, "")
 router.register("eth", FaucetView, "")
 router.register("sticky", StickyView, "")
+router.register("sign", SignView, "")
 
 urlpatterns = [
     path("", include(router.urls))
