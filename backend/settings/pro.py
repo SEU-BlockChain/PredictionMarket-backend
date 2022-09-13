@@ -1,6 +1,6 @@
 from .dev import *
 
-DEBUG = False
+DEBUG = True
 
 CACHES = {
     'default': {
