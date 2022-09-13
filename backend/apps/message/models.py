@@ -11,6 +11,7 @@ class Origin:
     BBS_COMMENT = 1
     SPECIAL_COLUMN = 2
     SPECIAL_COMMENT = 3
+    ISSUE_COMMENT = 4
 
 
 class AbstractMessage(APIModel):
@@ -30,10 +31,14 @@ class AbstractOrigin(APIModel):
         (Origin.SPECIAL_COMMENT, "专栏评论")
     ]
     origin = models.IntegerField(choices=STATUS_CHOICES, null=True, default=None, verbose_name="来源")
+
     bbs_article = models.ForeignKey(to="bbs.Article", null=True, default=None, on_delete=models.DO_NOTHING)
     bbs_comment = models.ForeignKey(to="bbs.Comment", null=True, default=None, on_delete=models.DO_NOTHING)
+
     special_column = models.ForeignKey(to="special.Column", null=True, default=None, on_delete=models.DO_NOTHING)
     special_comment = models.ForeignKey(to="special.Comment", null=True, default=None, on_delete=models.DO_NOTHING)
+
+    issue_comment = models.ForeignKey(to="issue.IssueComment", null=True, default=None, on_delete=models.DO_NOTHING)
 
     class Meta:
         abstract = True
