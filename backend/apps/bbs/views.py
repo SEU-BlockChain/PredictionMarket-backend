@@ -199,6 +199,23 @@ class CommentView(APIModelViewSet):
                 is_viewed=receiver.is_viewed(sender, "reply")
             )
 
+        if request.data.get("share"):
+            follower_list = request.user.follow_me.exclude(
+                follower__message_setting__dynamic=0,
+            ).filter(
+                ~Q(follower_id__in=request.user.black_me_set)
+            ).all()
+
+            create_data = map(lambda follower: Dynamic(
+                sender=request.user,
+                receiver=follower.follower,
+                origin=Origin.BBS_COMMENT,
+                bbs_comment=instance,
+                is_viewed=follower.follower.message_setting.dynamic == MessageSetting.IGNORE,
+            ), follower_list)
+
+            Dynamic.objects.bulk_create(create_data)
+
     def after_destroy(self, instance: Comment, request, *args, **kwargs):
         instance.article.comment_num -= 1 + instance.comment_num
         instance.article.save()
@@ -287,6 +304,23 @@ class ChildrenCommentView(APIModelViewSet):
                 receiver=receiver,
                 is_viewed=receiver.is_viewed(sender, "reply")
             )
+
+        if request.data.get("share"):
+            follower_list = request.user.follow_me.exclude(
+                follower__message_setting__dynamic=0,
+            ).filter(
+                ~Q(follower_id__in=request.user.black_me_set)
+            ).all()
+
+            create_data = map(lambda follower: Dynamic(
+                sender=request.user,
+                receiver=follower.follower,
+                origin=Origin.BBS_COMMENT,
+                bbs_comment=instance,
+                is_viewed=follower.follower.message_setting.dynamic == MessageSetting.IGNORE,
+            ), follower_list)
+
+            Dynamic.objects.bulk_create(create_data)
 
     def after_destroy(self, instance: Comment, request, *args, **kwargs):
         instance.article.comment_num -= 1

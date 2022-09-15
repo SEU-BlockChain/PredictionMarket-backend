@@ -67,6 +67,35 @@ class Reply(AbstractMessage, AbstractOrigin):
                     is_active=True
                 )
             ).all()
+        elif category == Origin.SPECIAL_COLUMN:
+            queryset = cls.objects.filter(
+                special_comment__column=instance,
+                is_active=True,
+            ).all()
+        elif category == Origin.SPECIAL_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.ISSUE_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
         else:
             return
 
@@ -83,9 +112,15 @@ class At(AbstractMessage, AbstractOrigin):
     def handle_delete(cls, instance, category):
         if category == Origin.BBS_ARTICLE:
             queryset = cls.objects.filter(
-                origin=Origin.BBS_ARTICLE,
-                bbs_comment__article=instance,
-                is_active=True,
+                Q(
+                    origin=Origin.BBS_ARTICLE,
+                    bbs_article=instance,
+                    is_active=True,
+                ) | Q(
+                    origin=Origin.BBS_COMMENT,
+                    bbs_comment__article=instance,
+                    is_active=True,
+                )
             ).all()
         elif category == Origin.BBS_COMMENT:
             queryset = cls.objects.filter(
@@ -96,6 +131,42 @@ class At(AbstractMessage, AbstractOrigin):
                 ) | Q(
                     origin=Origin.BBS_COMMENT,
                     bbs_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.SPECIAL_COLUMN:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COLUMN,
+                    special_column=instance,
+                    is_active=True,
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__column=instance,
+                    is_active=True,
+                )
+            ).all()
+        elif category == Origin.SPECIAL_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.ISSUE_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__target=instance,
                     is_active=True
                 )
             ).all()
@@ -141,6 +212,50 @@ class Like(AbstractMessage, AbstractOrigin):
                     is_active=True
                 )
             ).all()
+        elif category == Origin.SPECIAL_COLUMN:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COLUMN,
+                    special_column=instance,
+                    is_active=True,
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__column=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.SPECIAL_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_column=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.ISSUE_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
         else:
             return
 
@@ -180,9 +295,63 @@ class Dynamic(AbstractMessage, AbstractOrigin):
             ).all()
         elif category == Origin.BBS_COMMENT:
             queryset = cls.objects.filter(
-                origin=Origin.BBS_COMMENT,
-                bbs_comment=instance,
-                is_active=True
+                Q(
+                    origin=Origin.BBS_COMMENT,
+                    bbs_comment=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.BBS_COMMENT,
+                    bbs_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.BBS_COMMENT,
+                    bbs_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.SPECIAL_COLUMN:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COLUMN,
+                    special_column=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__column=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.SPECIAL_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_column=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.SPECIAL_COMMENT,
+                    special_comment__target=instance,
+                    is_active=True
+                )
+            ).all()
+        elif category == Origin.ISSUE_COMMENT:
+            queryset = cls.objects.filter(
+                Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__parent=instance,
+                    is_active=True
+                ) | Q(
+                    origin=Origin.ISSUE_COMMENT,
+                    issue_comment__target=instance,
+                    is_active=True
+                )
             ).all()
         else:
             return

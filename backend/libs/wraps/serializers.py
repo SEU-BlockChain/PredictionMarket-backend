@@ -109,4 +109,5 @@ class SimpleAuthorSerializer(APIModelSerializer):
             "id",
             "icon",
             "username",
+            "experience"
         ]

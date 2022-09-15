@@ -40,7 +40,9 @@ class DynamicView(APIModelViewSet):
         "sender__id",
         "sender__username",
         "bbs_article__title",
+        "bbs_comment__content",
         "special_column__title",
+        "special_comment__content",
     ]
 
     def get_queryset(self):

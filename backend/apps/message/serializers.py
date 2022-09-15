@@ -49,6 +49,8 @@ class DynamicBBSArticleSerializer(APIModelSerializer):
 
 class DynamicBBSCommentSerializer(APIModelSerializer):
     author = SimpleAuthorSerializer()
+    parent = bbs_serializers.SimpleCommentSerializer()
+    target = bbs_serializers.SimpleCommentSerializer()
     article = bbs_serializers.SimpleArticleSerializer()
     is_up = serializers.SerializerMethodField(read_only=True)
 
@@ -71,6 +73,8 @@ class DynamicBBSCommentSerializer(APIModelSerializer):
             "article",
             "content",
             "up_num",
+            "target",
+            "parent",
             "down_num",
             "comment_num",
             "comment_time",
@@ -113,6 +117,8 @@ class DynamicSpecialColumnSerializer(APIModelSerializer):
 
 class DynamicSpecialCommentSerializer(APIModelSerializer):
     author = SimpleAuthorSerializer()
+    parent = special_serializer.SimpleCommentSerializer()
+    target = special_serializer.SimpleCommentSerializer()
     column = special_serializer.SimpleColumnSerializer()
     is_up = serializers.SerializerMethodField(read_only=True)
 
@@ -135,6 +141,8 @@ class DynamicSpecialCommentSerializer(APIModelSerializer):
             "column",
             "content",
             "up_num",
+            "target",
+            "parent",
             "down_num",
             "comment_num",
             "comment_time",

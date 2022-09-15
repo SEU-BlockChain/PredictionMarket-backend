@@ -56,6 +56,35 @@ class MyColumnView(APIModelViewSet):
 
         Dynamic.objects.bulk_create(create_data)
 
+    def after_update(self, instance, request, *args, **kwargs):
+        if instance.is_draft:
+            return
+
+        if Dynamic.objects.filter(special_column=instance):
+            return
+
+        follower_list = request.user.follow_me.exclude(
+            follower__message_setting__dynamic=0,
+        ).filter(
+            ~Q(follower_id__in=request.user.black_me_set)
+        ).all()
+
+        create_data = map(lambda follower: Dynamic(
+            sender=request.user,
+            receiver=follower.follower,
+            origin=Origin.SPECIAL_COLUMN,
+            special_column=instance,
+            is_viewed=follower.follower.message_setting.dynamic == MessageSetting.IGNORE,
+        ), follower_list)
+
+        Dynamic.objects.bulk_create(create_data)
+
+    def after_destroy(self, instance, request, *args, **kwargs):
+        Dynamic.handle_delete(instance, Origin.SPECIAL_COLUMN)
+        Like.handle_delete(instance, Origin.SPECIAL_COLUMN)
+        Reply.handle_delete(instance, Origin.SPECIAL_COLUMN)
+        At.handle_delete(instance, Origin.SPECIAL_COLUMN)
+
 
 class ColumnView(APIModelViewSet):
     authentication_classes = [UserInfoAuthentication]
@@ -194,12 +223,29 @@ class CommentView(APIModelViewSet):
 
         if receiver != sender and receiver.message_setting.reply:
             Reply.objects.create(
-                origin=Origin.SPECIAL_COLUMN,
+                origin=Origin.SPECIAL_COMMENT,
                 special_comment=instance,
                 sender=sender,
                 receiver=receiver,
                 is_viewed=receiver.is_viewed(sender, "reply")
             )
+
+        if request.data.get("share"):
+            follower_list = request.user.follow_me.exclude(
+                follower__message_setting__dynamic=0,
+            ).filter(
+                ~Q(follower_id__in=request.user.black_me_set)
+            ).all()
+
+            create_data = map(lambda follower: Dynamic(
+                sender=request.user,
+                receiver=follower.follower,
+                origin=Origin.SPECIAL_COMMENT,
+                special_comment=instance,
+                is_viewed=follower.follower.message_setting.dynamic == MessageSetting.IGNORE,
+            ), follower_list)
+
+            Dynamic.objects.bulk_create(create_data)
 
     def after_destroy(self, instance: Comment, request, *args, **kwargs):
         instance.column.comment_num -= 1 + instance.comment_num
@@ -258,6 +304,23 @@ class ChildrenCommentView(APIModelViewSet):
                 receiver=receiver,
                 is_viewed=receiver.is_viewed(sender, "reply")
             )
+
+        if request.data.get("share"):
+            follower_list = request.user.follow_me.exclude(
+                follower__message_setting__dynamic=0,
+            ).filter(
+                ~Q(follower_id__in=request.user.black_me_set)
+            ).all()
+
+            create_data = map(lambda follower: Dynamic(
+                sender=request.user,
+                receiver=follower.follower,
+                origin=Origin.SPECIAL_COMMENT,
+                special_comment=instance,
+                is_viewed=follower.follower.message_setting.dynamic == MessageSetting.IGNORE,
+            ), follower_list)
+
+            Dynamic.objects.bulk_create(create_data)
 
     def after_destroy(self, instance: Comment, request, *args, **kwargs):
         instance.column.comment_num -= 1
