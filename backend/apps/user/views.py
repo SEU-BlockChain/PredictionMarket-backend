@@ -9,8 +9,15 @@ from backend.libs.wraps.response import UserInfoResponse, APIResponse
 from backend.libs.wraps.authenticators import CommonJwtAuthentication, UserInfoAuthentication
 from backend.libs.wraps.views import APIModelViewSet, Pag
 from backend.utils.COS import *
-from bbs.models import Comment
-from bbs.serializers import SelfCommentSerializer
+from backend.libs.scripts.sql import post_sql, comment_sql
+from bbs.serializers import (
+    Article, ArticleSerializer, Comment as BBSComment, SelfCommentSerializer as BBSCommentSerializer
+)
+from special.serializers import (
+    Column, ColumnSerializer, Comment as SpecialComment, SelfCommentSerializer as SpecialCommentSerializer
+)
+from issue.serializers import IssueComment, SelfCommentSerializer as IssueCommentSerializer
+from backend.libs.function.get import getOrder
 
 
 class SignView(ViewSet):
@@ -121,18 +128,100 @@ class UserInfoView(ViewSet):
         return APIResponse(response_code.SUCCESS_CHANGE_ICON, "修改头像成功")
 
     @action(["GET"], False)
+    def post(self, request):
+        offset = int(request.query_params.get("offset", 0))
+        ordering = request.query_params.get("order", "").strip()
+
+        if ordering not in ["-update_time", "-create_time", "-up_num", "-comment_num"]:
+            ordering = "-update_time"
+
+        data = {
+            "article": [],
+            "column": [],
+        }
+
+        for i in Article.objects.raw(post_sql.format(offset=offset, user_id=request.user.id, **getOrder(ordering))):
+            if i.post_type == 1:
+                data["article"].append(i.id)
+            elif i.post_type == 2:
+                data["column"].append(i.id)
+
+        total = len(data["article"]) + len(data["column"])
+
+        class view:
+            action = "list"
+
+        article = ArticleSerializer(
+            Article.objects.filter(author__is_active=True, id__in=data["article"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        column = ColumnSerializer(
+            Column.objects.filter(author__is_active=True, id__in=data["column"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+
+        return APIResponse(code=response_code.SUCCESS_GET_SELF_POST, result={
+            "content": {
+                "article": article,
+                "column": column,
+            },
+            "end": total != 10
+        })
+
+    @action(["GET"], False)
     def comment(self, request):
-        instance = Comment.objects.filter(
-            article__is_active=True,
-            author=request.user,
-            is_active=True
-        ).order_by(
-            "-comment_time"
-        )
-        pag = Pag()
-        paged_instance = pag.paginate_queryset(instance, request, view=self)
-        ser = SelfCommentSerializer(paged_instance, many=True, context={"view": self, "request": request})
-        return pag.get_paginated_response([response_code.SUCCESS_GET_COMMENT_LIST, ser.data])
+        offset = int(request.query_params.get("offset", 0))
+        ordering = request.query_params.get("order", "").strip()
+
+        if ordering not in ["-comment_time", "-up_num", "-comment_num"]:
+            ordering = "-comment_time"
+
+        data = {
+            "bbs": [],
+            "special": [],
+            "issue": [],
+        }
+
+        for i in BBSComment.objects.raw(
+                comment_sql.format(offset=offset, user_id=request.user.id, **getOrder(ordering))):
+            if i.comment_type == 1:
+                data["bbs"].append(i.id)
+            elif i.comment_type == 2:
+                data["special"].append(i.id)
+            elif i.comment_type == 3:
+                data["issue"].append(i.id)
+
+        total = len(data["bbs"]) + len(data["special"]) + len(data["issue"])
+
+        class view:
+            action = "list"
+
+        bbs = BBSCommentSerializer(
+            BBSComment.objects.filter(author__is_active=True, id__in=data["bbs"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        special = SpecialCommentSerializer(
+            SpecialComment.objects.filter(author__is_active=True, id__in=data["special"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        issue = IssueCommentSerializer(
+            IssueComment.objects.filter(author__is_active=True, id__in=data["issue"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+
+        return APIResponse(code=response_code.SUCCESS_GET_SELF_COMMENT, result={
+            "content": {
+                "bbs": bbs,
+                "special": special,
+                "issue": issue
+            },
+            "end": total != 10
+        })
 
     @action(["GET"], False)
     def message(self, request):
@@ -160,6 +249,46 @@ class OtherUserView(APIModelViewSet):
         "id",
         "username",
     ]
+
+    @action(["GET"], False)
+    def post(self, request):
+        offset = int(request.query_params.get("offset", 0))
+        user_id = request.query_params.get("user_id", "").strip()
+
+        data = {
+            "article": [],
+            "column": [],
+        }
+
+        for i in Article.objects.raw(post_sql.format(offset=offset, user_id=user_id, **getOrder("-update_time"))):
+            if i.post_type == 1:
+                data["article"].append(i.id)
+            elif i.post_type == 2:
+                data["column"].append(i.id)
+
+        total = len(data["article"]) + len(data["column"])
+
+        class view:
+            action = "list"
+
+        article = ArticleSerializer(
+            Article.objects.filter(author__is_active=True, id__in=data["article"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+        column = ColumnSerializer(
+            Column.objects.filter(author__is_active=True, id__in=data["column"]),
+            many=True,
+            context={"view": view, "request": request}
+        ).data
+
+        return APIResponse(code=response_code.SUCCESS_GET_SELF_POST, result={
+            "content": {
+                "article": article,
+                "column": column,
+            },
+            "end": total != 10
+        })
 
 
 class FollowView(ViewSet):

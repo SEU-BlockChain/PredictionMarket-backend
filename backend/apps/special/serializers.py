@@ -418,3 +418,37 @@ class SimpleCommentSerializer(APIModelSerializer):
             "description",
             "author"
         ]
+
+
+class SelfCommentSerializer(APIModelSerializer):
+    column = SimpleColumnSerializer()
+    is_up = serializers.SerializerMethodField(read_only=True)
+    target = SimpleCommentSerializer()
+    parent = SimpleCommentSerializer()
+
+    def get_is_up(self, instance):
+        author_id = self.context["request"].user.id
+        if not author_id:
+            return None
+
+        comment_id = instance.id
+        obj = UpAndDown.objects.filter(comment_id=comment_id, author_id=author_id).first()
+        if not obj:
+            return None
+
+        return obj.is_up
+
+    class Meta:
+        model = Comment
+        fields = [
+            "id",
+            "content",
+            "up_num",
+            "down_num",
+            "target",
+            "parent",
+            "comment_num",
+            "comment_time",
+            "column",
+            "is_up"
+        ]

@@ -318,6 +318,8 @@ class SimpleArticleSerializer(APIModelSerializer):
 class SelfCommentSerializer(APIModelSerializer):
     article = SimpleArticleSerializer()
     is_up = serializers.SerializerMethodField(read_only=True)
+    target = SimpleCommentSerializer()
+    parent = SimpleCommentSerializer()
 
     def get_is_up(self, instance):
         author_id = self.context["request"].user.id
@@ -341,6 +343,8 @@ class SelfCommentSerializer(APIModelSerializer):
             "comment_num",
             "comment_time",
             "article",
+            "target",
+            "parent",
             "is_up"
         ]
 

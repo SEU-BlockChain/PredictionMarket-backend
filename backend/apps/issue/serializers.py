@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 
 from lxml import etree
 from django.db.models import F
@@ -225,3 +224,57 @@ class VoteCommentSerializer(EmptySerializer):
     @staticmethod
     def _update_num(comment_id, up, down):
         IssueComment.objects.filter(id=comment_id).update(up_num=F("up_num") + up, down_num=F("down_num") + down)
+
+
+class SimpleIssueSerializer(APIModelSerializer):
+    class Meta:
+        model = Issue
+        fields = [
+            "address"
+        ]
+
+
+class SimpleCommentSerializer(APIModelSerializer):
+    author = SimpleAuthorSerializer()
+
+    class Meta:
+        model = IssueComment
+        fields = [
+            "id",
+            "description",
+            "author"
+        ]
+
+
+class SelfCommentSerializer(APIModelSerializer):
+    issue = SimpleIssueSerializer()
+    is_up = serializers.SerializerMethodField(read_only=True)
+    target = SimpleCommentSerializer()
+    parent = SimpleCommentSerializer()
+
+    def get_is_up(self, instance):
+        author_id = self.context["request"].user.id
+        if not author_id:
+            return None
+
+        comment_id = instance.id
+        obj = IssueCommentVote.objects.filter(comment_id=comment_id, author_id=author_id).first()
+        if not obj:
+            return None
+
+        return obj.is_up
+
+    class Meta:
+        model = IssueComment
+        fields = [
+            "id",
+            "content",
+            "up_num",
+            "down_num",
+            "target",
+            "parent",
+            "comment_num",
+            "comment_time",
+            "issue",
+            "is_up"
+        ]

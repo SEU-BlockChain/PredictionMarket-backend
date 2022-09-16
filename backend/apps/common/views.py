@@ -243,7 +243,7 @@ class SignView(ViewSet):
         except Exception as e:
             return APIResponse(msg="失败")
 
-    @action(["get"], False)
+    @action(["GET"], False)
     def signed(self, request):
         address = request.query_params.get("address")
         if not address:
