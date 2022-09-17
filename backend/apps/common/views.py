@@ -13,7 +13,7 @@ from .serializers import *
 from backend.utils import SMS, COS
 from backend.libs.constants import response_code
 from backend.libs.wraps.response import APIResponse
-from backend.libs.wraps.authenticators import CommonJwtAuthentication
+from backend.libs.wraps.authenticators import UserInfoAuthentication
 from backend.libs.wraps.logger import log
 from backend.libs.scripts.sql import recommend_sql
 from bbs.serializers import ArticleSerializer, Article
@@ -64,7 +64,7 @@ class SMSCodeView(ViewSet):
 
 
 class ImageView(ViewSet):
-    authentication_classes = [CommonJwtAuthentication]
+    authentication_classes = [UserInfoAuthentication]
 
     # 文章内图片上传
     @action(["POST"], False)
