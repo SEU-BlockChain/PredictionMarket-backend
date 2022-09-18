@@ -6,6 +6,7 @@ from special import serializers as special_serializer
 from backend.libs.wraps.serializers import APIModelSerializer, serializers, SimpleAuthorSerializer
 from backend.libs.wraps.errors import SerializerError
 from backend.libs.constants import response_code
+from user.models import User
 
 
 class MessageSettingSerializer(APIModelSerializer):
@@ -496,13 +497,16 @@ class SystemSerializer(APIModelSerializer):
 
 
 class PrivateSerializer(APIModelSerializer):
-    sender = SimpleAuthorSerializer()
+    target = serializers.SerializerMethodField()
     is_viewed = serializers.SerializerMethodField()
     time = serializers.SerializerMethodField()
     new = serializers.SerializerMethodField()
 
     def get_is_viewed(self, instance):
         return instance.viewed
+
+    def get_target(self, instance):
+        return SimpleAuthorSerializer(User.objects.get(id=instance.target_id)).data
 
     def get_time(self, instance):
         return instance.last_time
@@ -517,7 +521,7 @@ class PrivateSerializer(APIModelSerializer):
             "content",
             "time",
             "is_viewed",
-            "sender",
+            "target",
             "new"
         ]
 

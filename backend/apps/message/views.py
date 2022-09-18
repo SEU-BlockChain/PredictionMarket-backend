@@ -136,7 +136,7 @@ class PrivateView(APIModelViewSet):
     exclude = ["create", "retrieve", "update"]
 
     def get_queryset(self):
-        return Private.objects.raw(private_sql % self.request.user.id)
+        return Private.objects.raw(private_sql.format(user_id=self.request.user.id))
 
     def destroy(self, request, *args, **kwargs):
         pass
@@ -160,11 +160,27 @@ class PrivateDetailView(APIModelViewSet):
             ).filter(
                 Q(
                     sender_id=self.request.user.id,
-                    receiver_id=self.request.query_params.get("uid")
+                    receiver_id=self.request.query_params.get("uid"),
                 ) | Q(
                     sender_id=self.request.query_params.get("uid"),
                     receiver_id=self.request.user.id
                 )
-            ).all().order_by("time")
+            ).all().order_by("-time")
 
         return Private.objects.all()
+
+    def after_list(self, queryset, request, *args, **kwargs):
+        queryset = Private.objects.filter(
+            Q(
+                sender_id=self.request.user.id,
+                receiver_id=self.request.query_params.get("uid"),
+                is_viewed=False
+            ) | Q(
+                sender_id=self.request.query_params.get("uid"),
+                receiver_id=self.request.user.id,
+                is_viewed=False
+            )
+        )
+        for i in queryset:
+            i.is_viewed = True
+        Private.objects.bulk_update(queryset, ["is_viewed"])

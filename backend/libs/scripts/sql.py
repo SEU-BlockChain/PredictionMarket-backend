@@ -20,22 +20,36 @@ ORDER BY viewed,
          last_time DESC;
 """
 
+
 private_sql = """
 SELECT id,
        content,
-       sender_id,
+       IF(T.sender_id='{user_id}',T.receiver_id,T.sender_id) target_id,
        MAX(time)                 last_time,
-       MIN(is_viewed)            viewed,
-       COUNT(*) - SUM(is_viewed) new
-FROM message_private
-WHERE is_active = 1
-  AND receiver_id = %d
-GROUP BY sender_id
+       MIN(_is_viewed)            viewed,
+       COUNT(*) - SUM(_is_viewed) new
+FROM (
+         SELECT id,
+                content,
+                time,
+                is_viewed,
+                is_active,
+                sender_id,
+                receiver_id,
+                IF(sender_id='{user_id}',TRUE,is_viewed) _is_viewed,
+                CONCAT(CONVERT(IF(sender_id < receiver_id, sender_id, receiver_id), CHAR), ',',
+                       CONVERT(IF(sender_id > receiver_id, sender_id, receiver_id), CHAR)) AS tag
+         FROM message_private
+         WHERE is_active = 1
+         AND (sender_id='{user_id}' OR  receiver_id ='{user_id}')
+         ORDER BY time DESC 
+     ) as T
+GROUP BY tag
 ORDER BY viewed,
-         last_time DESC;
+last_time DESC 
 """
-
-recommend_sql = """SELECT *
+recommend_sql = """
+SELECT *
 FROM (
          SELECT id, update_time, 1 AS recommend_type
          FROM bbs_article
@@ -56,19 +70,20 @@ ORDER BY update_time DESC
 LIMIT 10 OFFSET %d;
 """
 
-post_sql = """SELECT *
+post_sql = """
+SELECT *
 FROM (
          SELECT id, update_time, create_time, up_num, comment_num, 1 AS post_type
          FROM bbs_article
          WHERE is_active = true
-           AND author_id = "{user_id}"
+           AND author_id = '{user_id}'
          UNION
          SELECT id, update_time, create_time, up_num, comment_num, 2 AS post_type
          FROM special_column
          WHERE is_active = true
            AND is_audit = true
            AND is_draft = false
-           AND author_id = "{user_id}"
+           AND author_id = '{user_id}'
      ) AS T
 ORDER BY {order} {desc}
 LIMIT 10 OFFSET {offset};
@@ -82,7 +97,7 @@ FROM (
                   SELECT id, comment_time, up_num, comment_num, article_id, 1 AS comment_type
                   FROM bbs_comment
                   WHERE is_active = true
-                    AND author_id = "{user_id}"
+                    AND author_id = '{user_id}'
               ) AS A
                   JOIN (
              SELECT id as uid, is_active
@@ -95,7 +110,7 @@ FROM (
                   SELECT id, comment_time, up_num, comment_num, column_id, 2 AS comment_type
                   FROM special_comment
                   WHERE is_active = true
-                    AND author_id = "{user_id}"
+                    AND author_id = '{user_id}'
               ) AS A
                   JOIN (
              SELECT id as uid, is_active
@@ -108,7 +123,7 @@ FROM (
          SELECT id, comment_time, up_num, comment_num, 3 AS comment_type
          FROM issue_issuecomment
          WHERE is_active = true
-           AND author_id = "{user_id}"
+           AND author_id = '{user_id}'
      ) AS T
 ORDER BY {order} {desc}
 LIMIT 10 OFFSET {offset};

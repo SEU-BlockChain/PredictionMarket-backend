@@ -226,12 +226,40 @@ class UserInfoView(ViewSet):
     @action(["GET"], False)
     def message(self, request):
         data = {
-            "dynamic": request.user.dynamic_me.all().filter(is_active=True, is_viewed=False).count(),
-            "at": request.user.at_me.all().filter(is_active=True, is_viewed=False).count(),
-            "private": request.user.private_me.all().filter(is_active=True, is_viewed=False).count(),
-            "system": request.user.system_me.all().filter(is_active=True, is_viewed=False).count(),
-            "like": request.user.like_me.all().filter(is_active=True, is_viewed=False).count(),
-            "reply": request.user.reply_me.all().filter(is_active=True, is_viewed=False).count(),
+            "dynamic": request.user.dynamic_me.all().filter(
+                is_active=True,
+                is_viewed=False,
+                sender__is_active=True,
+                receiver__is_active=True,
+            ).count(),
+            "at": request.user.at_me.all().filter(
+                is_active=True,
+                is_viewed=False,
+                sender__is_active=True,
+                receiver__is_active=True,
+            ).count(),
+            "private": request.user.private_me.all().filter(
+                is_active=True,
+                is_viewed=False,
+                sender__is_active=True,
+                receiver__is_active=True,
+            ).count(),
+            "system": request.user.system_me.all().filter(
+                is_active=True,
+                is_viewed=False,
+            ).count(),
+            "like": request.user.like_me.all().filter(
+                is_active=True,
+                is_viewed=False,
+                sender__is_active=True,
+                receiver__is_active=True,
+            ).count(),
+            "reply": request.user.reply_me.all().filter(
+                is_active=True,
+                is_viewed=False,
+                sender__is_active=True,
+                receiver__is_active=True,
+            ).count(),
         }
         return APIResponse(response_code.SUCCESS_GET_MESSAGE_SUM, "成功获取消息", data)
 
