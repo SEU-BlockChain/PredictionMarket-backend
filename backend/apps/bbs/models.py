@@ -110,3 +110,24 @@ class UpAndDown(APIModel):
     comment = models.ForeignKey(to="Comment", on_delete=models.DO_NOTHING, null=True, verbose_name="对应评论")
     is_up = models.BooleanField(verbose_name="是否点赞")
     submit_time = models.DateTimeField(auto_now=True, verbose_name="点赞点踩时间")
+
+
+class Collection(APIModel):
+    author = models.ForeignKey(to="user.User", on_delete=models.DO_NOTHING, verbose_name="合集作者")
+    create_time = models.DateTimeField(auto_now_add=True, verbose_name="创建时间")
+    title = models.CharField(max_length=50, verbose_name="合集描述")
+    description = models.CharField(max_length=200, verbose_name="合集描述")
+    is_active = models.BooleanField(default=True, verbose_name="是否有效")
+
+    article = models.ManyToManyField(
+        to="Article",
+        through='CollectionToArticle',
+        through_fields=('collection', 'article'),
+    )
+
+
+class CollectionToArticle(APIModel):
+    collection = models.ForeignKey(to="Collection", on_delete=models.DO_NOTHING, verbose_name="对应合集")
+    article = models.ForeignKey(to="Article", on_delete=models.DO_NOTHING, verbose_name="对应文章")
+    top = models.IntegerField(verbose_name="顺序")
+    is_active = models.BooleanField(default=True, verbose_name="是否有效")

@@ -8,5 +8,12 @@ if __name__ == '__main__':
     django.setup()
 
     from vote.models import *
+    from message.models import System
+    from user.models import User
 
-    print(ChoiceToUser.objects.filter(choice__vote_id=8, user_id=1).values("choice_id"))
+    all_user = User.objects.all()
+
+    a = []
+    for i in all_user:
+        a.append(System(receiver=i, content="<p>已有新版本！请在 我的->设置 中更新app</p>"))
+    System.objects.bulk_create(a)

@@ -1,5 +1,6 @@
 from rest_framework.decorators import action
 from django.db.models import Q
+from rest_framework.request import Request
 
 from .serializers import *
 from message.models import Dynamic, MessageSetting, Like, Reply, Origin, At
@@ -349,3 +350,107 @@ class CategoryView(APIModelViewSet):
             return self.queryset.filter(stuff=False)
 
         return super().get_queryset()
+
+
+class CollectionView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    queryset = Collection.objects.filter(is_active=True).all()
+    serializer_class = CollectionSerializer
+    exclude = ["retrieve"]
+    code = {
+        "list": response_code.SUCCESS_GET_COLLECTION_LIST,
+        "destroy": response_code.SUCCESS_DELETE_COLLECTION,
+        "create": response_code.SUCCESS_POST_COLLECTION,
+        "update": response_code.SUCCESS_EDIT_COLLECTION
+    }
+
+    def get_queryset(self):
+        return self.queryset.filter(author=self.request.user).order_by("-create_time")
+
+
+class CollectionInfoView(APIModelViewSet):
+    authentication_classes = [UserInfoAuthentication]
+    exclude = ["list", "destroy", "create", "update"]
+    queryset = Collection.objects.filter(is_active=True).all()
+    serializer_class = CollectionInfoSerializer
+    code = {
+        "list": response_code.SUCCESS_GET_COLLECTION
+    }
+
+    def list(self, request, *args, **kwargs):
+        collection = self.queryset.filter(id=kwargs.get("collection_id"))
+        if not collection:
+            return APIResponse(response_code.INEXISTENT_COLLECTION, "合集不存在")
+
+        return APIResponse(
+            self.code["list"],
+            result=self.serializer_class(
+                collection.first(),
+                context={"user": request.user}
+            ).data
+        )
+
+
+class CollectionArticleView(APIModelViewSet):
+    authentication_classes = [CommonJwtAuthentication]
+    queryset = CollectionToArticle
+    serializer_class = CollectionArticleSerializer
+    exclude = ["retrieve", "update"]
+    code = {
+        "list": response_code.SUCCESS_GET_COLLECTION_LIST,
+        "destroy": response_code.SUCCESS_DELETE_COLLECTION,
+        "create": response_code.SUCCESS_POST_COLLECTION,
+    }
+
+    def get_authenticators(self):
+        if self.request.method == "GET":
+            return [UserInfoAuthentication()]
+
+        return super().get_authenticators()
+
+    def get_queryset(self):
+        return self.queryset.objects.filter(
+            collection_id=self.kwargs.get("collection_id"),
+            collection__is_active=True,
+            is_active=True, article__is_active=True
+        ).all().order_by("top")
+
+    def create(self, request: Request, *args, **kwargs):
+        collection = Collection.objects.filter(id=self.kwargs.get("collection_id"))
+        if not collection:
+            return APIResponse(response_code.INEXISTENT_COLLECTION, "合集不存在")
+
+        collection = collection.first()
+
+        article = Article.objects.filter(author=request.user, is_active=True, id=request.data.get("article_id"))
+
+        if not article:
+            return APIResponse(response_code.INEXISTENT_ARTICLE, "文章不存在")
+
+        article = article.first()
+
+        if collection in article.collection_set.filter(collectiontoarticle__is_active=True).all():
+            return APIResponse(response_code.ALREADY_IN_COLLECTION, "文章已在该合集中")
+
+        total = CollectionToArticle.objects.filter(collection=collection, is_active=True).count()
+        CollectionToArticle.objects.create(article=article, top=total + 1, collection=collection)
+        return APIResponse(self.code["create"], "已添加到合集")
+
+    def destroy(self, request, *args, **kwargs):
+        collection = Collection.objects.filter(id=self.kwargs.get("collection_id"))
+
+        if not collection:
+            return APIResponse(response_code.INEXISTENT_COLLECTION, "合集不存在")
+
+        collection = collection.first()
+
+        article = CollectionToArticle.objects.filter(collection=collection, is_active=True, article_id=kwargs.get("pk"))
+
+        if not article:
+            return APIResponse(response_code.INEXISTENT_ARTICLE, "文章不存在")
+
+        article = article.first()
+
+        article.is_active = False
+        article.save()
+        return APIResponse(self.code["destroy"], "已移出合集")

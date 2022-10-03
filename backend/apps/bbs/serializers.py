@@ -2,7 +2,8 @@ import re
 from datetime import datetime
 
 from lxml import etree
-from django.db.models import F
+from django.db.models import F, Window
+from django.db.models.functions import Rank
 
 from .models import *
 from user.models import User
@@ -58,11 +59,58 @@ class DraftSerializer(APIModelSerializer):
         return super().create(validated_data)
 
 
+class SimpleCollectionSerializer(APIModelSerializer):
+    extra = serializers.SerializerMethodField()
+
+    def get_extra(self, instance: Collection):
+        extra = {
+            "previous": None,
+            "next": None,
+        }
+        articles = CollectionToArticle.objects.filter(collection=instance, is_active=True).all()
+        extra["total"] = len(articles)
+
+        searched = False
+        stop = False
+
+        for k, v in enumerate(articles, 1):
+            if v.article != self.context["article"]:
+                if searched and stop:
+                    break
+                elif searched:
+                    extra["next"] = v.article_id
+                    stop = True
+                else:
+                    extra["previous"] = v.article_id
+            else:
+                searched = True
+                extra["order"] = k
+        return extra
+
+    class Meta:
+        model = Collection
+        fields = [
+            "id",
+            "title",
+            "extra",
+        ]
+
+
 class ArticleSerializer(APIModelSerializer):
     author = OtherUserSerializer(read_only=True)
     category = SimpleCategorySerializer(read_only=True)
     category_id = serializers.IntegerField(write_only=True)
     is_up = serializers.SerializerMethodField(read_only=True)
+    collections = serializers.SerializerMethodField(read_only=True)
+
+    def get_collections(self, instance: Article):
+        collections = SimpleCollectionSerializer(
+            instance=instance.collection_set.filter(is_active=True, collectiontoarticle__is_active=True),
+            read_only=True,
+            many=True,
+            context={"article": instance}
+        )
+        return collections.data
 
     def get_is_up(self, instance):
         author_id = self.context["request"].user.id
@@ -94,7 +142,8 @@ class ArticleSerializer(APIModelSerializer):
             "comment_time",
             "create_time",
             "update_time",
-            "is_up"
+            "is_up",
+            "collections"
         ]
 
     def __init__(self, *args, **kwargs):
@@ -550,3 +599,94 @@ class CategorySerializer(APIModelSerializer):
 
         for i in remove:
             self.fields.pop(i)
+
+
+class CollectionSerializer(APIModelSerializer):
+    total = serializers.SerializerMethodField()
+    involved = serializers.SerializerMethodField()
+
+    def get_total(self, instance: Collection):
+        return len(instance.article.filter(collectiontoarticle__is_active=True).all())
+
+    def get_involved(self, instance: Collection):
+        return CollectionToArticle.objects.filter(
+            collection=instance,
+            article_id=self.context["article_id"],
+            is_active=True
+        ).exists()
+
+    class Meta:
+        model = Collection
+        fields = [
+            "id",
+            "title",
+            "description",
+            "create_time",
+            "total",
+            "involved",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        view = self.context["view"]
+        self.context["action"] = view.action
+        article_id = self.context["view"].request.query_params.get("article_id")
+        if view.action == "list" and article_id:
+            self.context["article_id"] = article_id
+            remove = [
+                "description",
+            ]
+
+        elif view.action == "list" and not article_id:
+            remove = [
+                "description",
+                "involved"
+            ]
+        elif view.action == "update":
+            remove = [
+                "create_time",
+                "involved",
+            ]
+        else:
+            remove = [
+                "involved",
+            ]
+        for i in remove:
+            self.fields.pop(i)
+
+    def create(self, validated_data):
+        validated_data["author"] = self.context["view"].request.user
+        return super().create(validated_data)
+
+
+class CollectionInfoSerializer(APIModelSerializer):
+    author = SimpleAuthorSerializer()
+    self = serializers.SerializerMethodField()
+
+    def get_self(self, instance: Collection):
+        return instance.author == self.context["user"]
+
+    class Meta:
+        model = Collection
+        fields = [
+            "title",
+            "description",
+            "create_time",
+            "author",
+            "self"
+        ]
+
+
+class CollectionArticleSerializer(APIModelSerializer):
+    article = serializers.SerializerMethodField()
+
+    def get_article(self, instance: CollectionToArticle):
+        class view:
+            action = "list"
+
+        return ArticleSerializer(instance.article, context=self.context).data
+
+    class Meta:
+        model = CollectionToArticle
+        fields = ["article"]
