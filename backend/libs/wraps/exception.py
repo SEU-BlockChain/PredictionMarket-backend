@@ -7,7 +7,7 @@ from .errors import *
 from backend.libs.constants import response_code
 from qcloud_cos.cos_exception import CosException
 
-DEBUG = True
+DEBUG = False
 
 
 def common_exception_handler(exc, context):
