@@ -356,9 +356,9 @@ class CollectionView(APIModelViewSet):
     authentication_classes = [CommonJwtAuthentication]
     queryset = Collection.objects.filter(is_active=True).all()
     serializer_class = CollectionSerializer
-    exclude = ["retrieve"]
     code = {
         "list": response_code.SUCCESS_GET_COLLECTION_LIST,
+        "retrieve": response_code.SUCCESS_GET_COLLECTION,
         "destroy": response_code.SUCCESS_DELETE_COLLECTION,
         "create": response_code.SUCCESS_POST_COLLECTION,
         "update": response_code.SUCCESS_EDIT_COLLECTION

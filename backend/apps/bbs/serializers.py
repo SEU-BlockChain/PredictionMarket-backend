@@ -643,6 +643,12 @@ class CollectionSerializer(APIModelSerializer):
                 "description",
                 "involved"
             ]
+        elif view.action == "retrieve":
+            remove = [
+                "create_time",
+                "total",
+                "involved",
+            ]
         elif view.action == "update":
             remove = [
                 "create_time",

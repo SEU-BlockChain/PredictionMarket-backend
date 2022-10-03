@@ -15,5 +15,5 @@ if __name__ == '__main__':
 
     a = []
     for i in all_user:
-        a.append(System(receiver=i, content="<p>已有新版本！请在 我的->设置 中更新app</p>"))
+        a.append(System(receiver=i, content="<p>已有新版本Beta 1.0.5！请在 我的->设置 中更新app</p>"))
     System.objects.bulk_create(a)
