@@ -4,6 +4,6 @@ daemon = 'false'
 worker_class = 'uvicorn.workers.UvicornWorker'
 worker_connections = 2000
 pidfile = '/var/run/gunicorn.pid'
-accesslog = 'logs/acess.log'
+accesslog = 'logs/access.log'
 errorlog = 'logs/error.log'
 loglevel = 'warning'
