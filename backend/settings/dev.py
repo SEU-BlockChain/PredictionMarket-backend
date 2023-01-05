@@ -5,7 +5,7 @@ DEBUG = True
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379',
+        'LOCATION': f'redis://{DEV_REDIS_HOST}:6379',
         'OPTIONS': {
             'CLIENT_CLASS''django_redis.client.DefaultClient'
             'CONNECTION_POOL_KWARGS': {'max_connection': 100}
@@ -18,9 +18,8 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'bc_db',
         'USER': 'root',
-        'PASSWORD': MYSQL_KEY,
-        # 'HOST': '127.0.0.1'
-        'HOST': '1.13.159.138'
+        'PASSWORD': DEV_MYSQL_KEY,
+        'HOST': DEV_MYSQL_HOST
     }
 }
 

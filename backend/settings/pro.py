@@ -5,10 +5,11 @@ DEBUG = False
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://1.13.161.219:6379',
+        'LOCATION': f'redis://{PRO_REDIS_HOST}:6379',
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-            'PASSWORD': REDIS_KEY
+            'CONNECTION_POOL_KWARGS': {'max_connection': 100},
+            'PASSWORD': PRO_REDIS_KEY
         }
     }
 }
@@ -18,7 +19,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'bc_db',
         'USER': 'root',
-        'PASSWORD': MYSQL_KEY,
-        'HOST': '1.13.159.138'
+        'HOST': PRO_MYSQL_HOST,
+        'PASSWORD': PRO_MYSQL_KEY,
     }
 }

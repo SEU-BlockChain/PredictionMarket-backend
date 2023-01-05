@@ -2,7 +2,7 @@ import os
 import sys
 import datetime
 
-from backend.privacy.keys import DJANGO_KEY, REDIS_KEY, MYSQL_KEY
+from backend.privacy.keys import *
 
 SECRET_KEY = DJANGO_KEY
 
